@@ -490,7 +490,7 @@ def main() -> None:
 
     Uinf = 10.0
     Radius = 50.0
-    TSR = 8.0
+    TSR = 10.0
     NBlades = 3
 
     _, results, _, summary = run_bem_case(
