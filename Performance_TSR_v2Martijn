@@ -69,7 +69,7 @@ polar_alpha, polar_cl, polar_cd = data['Alfa'], data['Cl'], data['Cd']
 # Specs
 Radius, NBlades, Uinf = 50, 3, 10
 RootLocation_R, TipLocation_R, Pitch = 0.2, 1.0, -2
-delta_r_R = 0.01
+delta_r_R = 0.005
 r_R_bins = np.arange(RootLocation_R, TipLocation_R + delta_r_R/2, delta_r_R)
 
 # Store results for TSR=8 to make spanwise plots

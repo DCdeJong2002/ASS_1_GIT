@@ -1,0 +1,135 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# --- 1. Helper Functions (Strictly from your provided example) ---
+
+def ainduction(CT):
+    """Calculates induction factor 'a' as a function of CT including Glauert's correction"""
+    CT1 = 1.816
+    CT2 = 2 * np.sqrt(CT1) - CT1
+    if np.isscalar(CT):
+        if CT >= CT2:
+            return 1 + (CT - CT1) / (4 * (np.sqrt(CT1) - 1))
+        return 0.5 - 0.5 * np.sqrt(max(0, 1 - CT))
+    else:
+        a = np.zeros(np.shape(CT))
+        a[CT >= CT2] = 1 + (CT[CT >= CT2] - CT1) / (4 * (np.sqrt(CT1) - 1))
+        a[CT < CT2] = 0.5 - 0.5 * np.sqrt(np.maximum(0, 1 - CT[CT < CT2]))
+        return a
+
+def PrandtlTipRootCorrection(r_R, rootradius_R, tipradius_R, TSR, NBlades, axial_induction):
+    """Calculates combined tip and root Prandtl correction"""
+    # Factor to avoid divide by zero
+    temp_val = max(1 - axial_induction, 0.001)
+    
+    temp1 = -NBlades/2 * (tipradius_R - r_R) / r_R * np.sqrt(1 + ((TSR * r_R)**2) / (temp_val**2))
+    Ftip = np.array(2 / np.pi * np.arccos(np.clip(np.exp(temp1), 0, 1)))
+    
+    temp2 = NBlades/2 * (rootradius_R - r_R) / r_R * np.sqrt(1 + ((TSR * r_R)**2) / (temp_val**2))
+    Froot = np.array(2 / np.pi * np.arccos(np.clip(np.exp(temp2), 0, 1)))
+    
+    return Froot * Ftip
+
+def loadBladeElement(vnorm, vtan, chord, twist, polar_alpha, polar_cl, polar_cd):
+    """Calculates local loads and coefficients"""
+    vmag2 = vnorm**2 + vtan**2
+    inflowangle = np.arctan2(vnorm, vtan) # phi in radians
+    alpha = twist + np.degrees(inflowangle)
+    
+    cl = np.interp(alpha, polar_alpha, polar_cl)
+    cd = np.interp(alpha, polar_alpha, polar_cd)
+    
+    lift = 0.5 * vmag2 * cl * chord
+    drag = 0.5 * vmag2 * cd * chord
+    
+    fnorm = lift * np.cos(inflowangle) + drag * np.sin(inflowangle)
+    ftan = lift * np.sin(inflowangle) - drag * np.cos(inflowangle)
+    gamma = 0.5 * np.sqrt(vmag2) * cl * chord
+    
+    return fnorm, ftan, gamma, alpha, np.degrees(inflowangle)
+
+# --- 2. Design Strategy Logic ---
+
+# Load Airfoil Data
+data = pd.read_excel('polar DU95W180 (3).xlsx', skiprows=3)
+polar_alpha, polar_cl, polar_cd = data['Alfa'], data['Cl'], data['Cd']
+
+# Optimization: Find alpha that maximizes Cl/Cd (Glide Ratio)
+glide_ratio = polar_cl / polar_cd
+alpha_opt = polar_alpha[np.argmax(glide_ratio)]
+cl_opt = np.interp(alpha_opt, polar_alpha, polar_cl)
+cd_opt = np.interp(alpha_opt, polar_alpha, polar_cd)
+
+# Design Constraints
+CT_target = 0.75
+TSR = 8
+Radius = 50
+NBlades = 3
+Uinf = 10
+Root_R = 0.2
+Tip_R = 1.0
+
+# 1D Actuator Disk Theory: CT = 4a(1-a) -> a = 0.25 for CT = 0.75
+a_design = ainduction(CT_target)
+CP_theory = CT_target * (1 - a_design) # CP = CT * (1-a)
+
+# Radial bins
+r_R_bins = np.arange(Root_R, Tip_R + 0.01, 0.01)
+design_chord = []
+design_twist = []
+design_results = []
+
+for i in range(len(r_R_bins)-1):
+    r_R = (r_R_bins[i] + r_R_bins[i+1]) / 2
+    
+    # Account for Prandtl loss in local loading
+    F = PrandtlTipRootCorrection(r_R, Root_R, Tip_R, TSR, NBlades, a_design)
+    F = max(F, 0.0001)
+    
+    # Required local thrust based on momentum balance with Prandtl
+    # Thrust = Area * 0.5 * rho * Uinf^2 * (4 * a * F * (1-a))
+    phi = np.arctan2(Uinf * (1 - a_design), TSR * Uinf * r_R) # Initial phi guess
+    
+    # Geometric projection for Cl/Cd at designed inflow
+    Cx = cl_opt * np.cos(phi) + cd_opt * np.sin(phi)
+    Cy = cl_opt * np.sin(phi) - cd_opt * np.cos(phi)
+    
+    # Solve for chord: Chord = (8 * pi * r * F * a * sin^2(phi)) / (NBlades * (1-a)^2 * Cx)
+    chord = (8 * np.pi * r_R * Radius * F * a_design * np.sin(phi)**2) / (NBlades * (1 - a_design)**2 * Cx)
+    
+    # Solve for twist: twist = alpha_opt - phi (in degrees)
+    # Using the loadBladeElement convention: alpha = twist + inflowangle
+    twist_input = alpha_opt - np.degrees(phi)
+    
+    design_chord.append(chord)
+    design_twist.append(twist_input)
+    design_results.append([a_design, r_R, chord, twist_input, Cx, Cy])
+
+# --- 3. Verification and Plots ---
+
+res = np.array(design_results)
+dr = 0.01 * Radius
+
+# Global performance via integration (matching example code logic)
+CT_design = np.sum(dr * (0.5 * Uinf**2 * (NBlades * res[:, 2] * res[:, 4] * ((1-a_design)*Uinf/np.sin(np.radians(alpha_opt-res[:,3])))**2 / Uinf**2))) / (0.5 * Uinf**2 * np.pi * Radius**2)
+# Simply using the result of CT*(1-a) for the design
+print(f"Target CT: {CT_target}")
+print(f"Actuator Disk Theory CP: {CP_theory:.4f}")
+
+# Plotting the Optimized Geometry
+fig, ax1 = plt.subplots(figsize=(12, 6))
+plt.title('Optimized Blade Geometry (Constant $a=0.25$, $C_T=0.75$)')
+ax1.plot(res[:, 1], design_chord, 'b-', label='Chord [m]')
+ax1.set_xlabel('r/R')
+ax1.set_ylabel('Chord [m]', color='b')
+ax1.grid(True)
+
+ax2 = ax1.twinx()
+ax2.plot(res[:, 1], design_twist, 'r--', label='Twist [deg]')
+ax2.set_ylabel('Twist [deg]', color='r')
+
+lines, labels = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax2.legend(lines + lines2, labels + labels2, loc='upper right')
+plt.show()
