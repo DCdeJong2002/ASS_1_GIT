@@ -1,0 +1,127 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
+
+# --- 1. Induction and Correction Functions (Same as your provided code) ---
+
+def ainduction(CT):
+    CT1 = 1.816
+    CT2 = 2 * np.sqrt(CT1) - CT1
+    if np.isscalar(CT):
+        if CT >= CT2: return 1 + (CT - CT1) / (4 * (np.sqrt(CT1) - 1))
+        return 0.5 - 0.5 * np.sqrt(max(0, 1 - CT))
+    else:
+        a = np.zeros(np.shape(CT))
+        a[CT >= CT2] = 1 + (CT[CT >= CT2] - CT1) / (4 * (np.sqrt(CT1) - 1))
+        a[CT < CT2] = 0.5 - 0.5 * np.sqrt(np.maximum(0, 1 - CT[CT < CT2]))
+        return a
+
+def PrandtlTipRootCorrection(r_R, rootradius_R, tipradius_R, TSR, NBlades, axial_induction):
+    # Ensure axial_induction doesn't hit 1.0 to avoid division by zero
+    ai = np.clip(axial_induction, -1, 0.999)
+    temp_tip = -NBlades/2 * (tipradius_R - r_R) / r_R * np.sqrt(1 + ((TSR * r_R)**2) / ((1 - ai)**2))
+    Ftip = np.array(2 / np.pi * np.arccos(np.clip(np.exp(temp_tip), 0, 1)))
+    temp_root = NBlades / 2 * (rootradius_R - r_R) / r_R * np.sqrt(1 + ((TSR * r_R)**2) / ((1 - ai)**2))
+    Froot = np.array(2 / np.pi * np.arccos(np.clip(np.exp(temp_root), 0, 1)))
+    return Froot * Ftip
+
+def loadBladeElement(vnorm, vtan, chord, twist, polar_alpha, polar_cl, polar_cd):
+    vmag2 = vnorm**2 + vtan**2
+    inflowangle = np.arctan2(vnorm, vtan)
+    # Match the alpha definition from your example logic
+    alpha = twist + np.degrees(inflowangle)
+    cl = np.interp(alpha, polar_alpha, polar_cl)
+    cd = np.interp(alpha, polar_alpha, polar_cd)
+    lift = 0.5 * vmag2 * cl * chord
+    drag = 0.5 * vmag2 * cd * chord
+    fnorm = lift * np.cos(inflowangle) + drag * np.sin(inflowangle)
+    ftan = lift * np.sin(inflowangle) - drag * np.cos(inflowangle)
+    gamma = 0.5 * np.sqrt(vmag2) * cl * chord
+    return fnorm, ftan, gamma, alpha, np.degrees(inflowangle)
+
+def solveStreamtube(Uinf, r1_R, r2_R, rootradius_R, tipradius_R, Omega, Radius, NBlades, chord, twist, polar_alpha, polar_cl, polar_cd):
+    Area = np.pi * ((r2_R * Radius)**2 - (r1_R * Radius)**2)
+    r_R = (r1_R + r2_R) / 2
+    a, aline = 0.1, 0.01
+    for i in range(200):
+        Urotor = Uinf * (1 - a)
+        Utan = (1 + aline) * Omega * r_R * Radius
+        fnorm, ftan, gamma, alpha, phi = loadBladeElement(Urotor, Utan, chord, twist, polar_alpha, polar_cl, polar_cd)
+        load3Daxial = fnorm * Radius * (r2_R - r1_R) * NBlades
+        CT = load3Daxial / (0.5 * Area * Uinf**2)
+        anew = ainduction(CT)
+        F = PrandtlTipRootCorrection(r_R, rootradius_R, tipradius_R, Omega*Radius/Uinf, NBlades, anew)
+        F = max(F, 0.0001)
+        anew /= F
+        if np.abs(a - anew) < 1e-5: break
+        a = 0.75 * a + 0.25 * anew
+        aline = ftan * NBlades / (2 * np.pi * Uinf * (1 - a) * Omega * 2 * (r_R * Radius)**2)
+        aline /= F
+    return [a, aline, r_R, fnorm, ftan, gamma, alpha, phi]
+
+# --- 2. Main Script for Assignment Task 1 ---
+
+# Load Data
+data = pd.read_excel('polar DU95W180 (3).xlsx', skiprows=3)
+polar_alpha, polar_cl, polar_cd = data['Alfa'], data['Cl'], data['Cd']
+
+# Specs
+Radius, NBlades, Uinf = 50, 3, 10
+RootLocation_R, TipLocation_R, Pitch = 0.2, 1.0, -2
+delta_r_R = 0.01
+r_R_bins = np.arange(RootLocation_R, TipLocation_R + delta_r_R/2, delta_r_R)
+
+# Store results for TSR=8 to make spanwise plots
+results_tsr8 = []
+
+print(f"{'TSR':<10} | {'CT':<10} | {'CP':<10}")
+print("-" * 35)
+
+for TSR in [6, 8, 10]:
+    Omega = Uinf * TSR / Radius
+    temp_results = []
+    for i in range(len(r_R_bins) - 1):
+        r_mid = (r_R_bins[i] + r_R_bins[i+1]) / 2
+        chord = 3 * (1 - r_mid) + 1
+        # alpha = twist_input + phi. To get alpha = phi - (twist + pitch), input = -(twist+pitch)
+        twist_input = -(14 * (1 - r_mid) + Pitch)
+        res = solveStreamtube(Uinf, r_R_bins[i], r_R_bins[i+1], RootLocation_R, TipLocation_R, Omega, Radius, NBlades, chord, twist_input, polar_alpha, polar_cl, polar_cd)
+        temp_results.append(res)
+    
+    res_arr = np.array(temp_results)
+    dr = (r_R_bins[1:] - r_R_bins[:-1]) * Radius
+    CT = np.sum(dr * res_arr[:, 3] * NBlades / (0.5 * Uinf**2 * np.pi * Radius**2))
+    CP = np.sum(dr * res_arr[:, 4] * res_arr[:, 2] * NBlades * Radius * Omega / (0.5 * Uinf**3 * np.pi * Radius**2))
+    print(f"{TSR:<10.1f} | {CT:<10.4f} | {CP:<10.4f}")
+    
+    if TSR == 8: results_tsr8 = res_arr
+
+# --- 3. Plotting Results (Matching your style) ---
+
+# Plot 1: Axial and Tangential Induction
+plt.figure(figsize=(10, 5))
+plt.plot(results_tsr8[:, 2], results_tsr8[:, 0], 'r-', label=r'$a$')
+plt.plot(results_tsr8[:, 2], results_tsr8[:, 1], 'g--', label=r'$a^\prime$')
+plt.title('Induction Factors along the Span (TSR=8)')
+plt.xlabel('r/R'); plt.grid(); plt.legend(); plt.show()
+
+# Plot 2: Normal and Tangential Force
+plt.figure(figsize=(10, 5))
+plt.plot(results_tsr8[:, 2], results_tsr8[:, 3]/(0.5*Uinf**2*Radius), 'r-', label=r'$F_{norm}$')
+plt.plot(results_tsr8[:, 2], results_tsr8[:, 4]/(0.5*Uinf**2*Radius), 'g--', label=r'$F_{tan}$')
+plt.title(r'Non-dimensioned Forces along the Span ($F / \frac{1}{2} \rho U_\infty^2 R$)')
+plt.xlabel('r/R'); plt.grid(); plt.legend(); plt.show()
+
+# Plot 3: Circulation
+plt.figure(figsize=(10, 5))
+plt.plot(results_tsr8[:, 2], results_tsr8[:, 5]/(np.pi*Uinf**2/(NBlades*(Uinf*8/Radius))), 'b-', label=r'$\Gamma$')
+plt.title('Non-dimensioned Circulation Distribution')
+plt.xlabel('r/R'); plt.grid(); plt.legend(); plt.show()
+
+# Plot 4: Angle of Attack and Inflow Angle
+plt.figure(figsize=(10, 5))
+plt.plot(results_tsr8[:, 2], results_tsr8[:, 6], 'k-', label=r'$\alpha$')
+plt.plot(results_tsr8[:, 2], results_tsr8[:, 7], 'm--', label=r'$\phi$')
+plt.title('Spanwise Angle of Attack and Inflow Angle (deg)')
+plt.xlabel('r/R'); plt.grid(); plt.legend(); plt.show()

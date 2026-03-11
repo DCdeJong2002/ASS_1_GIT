@@ -47,11 +47,11 @@ def solve_rotor(TSR):
         sigma_r = (N_blades * chord) / (2 * np.pi * r)
         
         # Initial guesses for induction factors
-        a, adash = 0.3, 0.01
+        a, adash = 0.3, 0
         relaxation = 0.1
         conv_limit = 1e-6
         
-        for i in range(500):
+        for i in range(800):
             # 4.1 Kinematics
             # Inflow angle phi
             phi = np.arctan2(U_inf * (1 - a), Omega * r * (1 + adash))
