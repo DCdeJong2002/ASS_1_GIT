@@ -68,7 +68,7 @@ polar_alpha, polar_cl, polar_cd = data['Alfa'], data['Cl'], data['Cd']
 
 # Specs
 Radius, NBlades, Uinf = 50, 3, 10
-RootLocation_R, TipLocation_R, Pitch = 0.2, 1.0, -2
+RootLocation_R, TipLocation_R, Pitch = 0.2, 1.0, -6.08
 delta_r_R = 0.005
 r_R_bins = np.arange(RootLocation_R, TipLocation_R + delta_r_R/2, delta_r_R)
 
@@ -83,9 +83,9 @@ for TSR in [6, 8, 10]:
     temp_results = []
     for i in range(len(r_R_bins) - 1):
         r_mid = (r_R_bins[i] + r_R_bins[i+1]) / 2
-        chord = 3 * (1 - r_mid) + 1
+        chord = 5.75 * (1 - r_mid) + 0.39
         # alpha = twist_input + phi. To get alpha = phi - (twist + pitch), input = -(twist+pitch)
-        twist_input = -(14 * (1 - r_mid) + Pitch)
+        twist_input = -(20.07 * (1 - r_mid) + Pitch)
         res = solveStreamtube(Uinf, r_R_bins[i], r_R_bins[i+1], RootLocation_R, TipLocation_R, Omega, Radius, NBlades, chord, twist_input, polar_alpha, polar_cl, polar_cd)
         temp_results.append(res)
     
