@@ -2,9 +2,25 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# --- 1. Load Data ---
+# read data
 data = pd.read_excel('polar DU95W180 (3).xlsx', skiprows=3)
 polar_alpha, polar_cl, polar_cd = data['Alfa'], data['Cl'], data['Cd']
+
+
+
+## ================================================================== ##
+## Previous chord, twist, pitch specs
+## ================================================================== ##
+
+def InitialChordFunction(r_R):
+    return 3 * (1 - r_R) + 1
+
+def InitialTwistFunction(r_R, pitch):
+    return -(14 * (1 - r_R) + pitch)
+
+pitch_initial = -2
+
+
 
 # Find aerodynamic optimum (max Cl/Cd) for the blade design
 glide_ratio = polar_cl / polar_cd
@@ -130,8 +146,87 @@ for tsr_choice in [6, 8, 10]:
     ct_val, cp_val, res_data = RunFullSimulation(c_slope, c_const, t_slope, pitch, tsr_choice)
     print(f"{tsr_choice:<10.1f} | {ct_val:<10.4f} | {cp_val:<10.4f}")
     if tsr_choice == 8: results_tsr8 = res_data
+    if tsr_choice == 8: ct_val_tsr8 = ct_val
+    if tsr_choice == 8: cp_val_tsr8 = cp_val
 
 print("-" * 40)
 print(f"Final Twist: {t_slope:.4f}*(1-r/R)")
 print(f"Final Pitch: {pitch:.4f} deg")
 print(f"Final Chord: ({c_slope:.4f}*(1-r/R) + {c_const:.4f}) m")
+
+
+
+## ================================================================== ##
+## Baseline Calculation & Comparison Plots
+## ================================================================== ##
+
+# 1. Define and Run the "Old" (Baseline) Simulation
+c_slope_old, c_const_old = 3.0, 1.0
+t_slope_old, pitch_old = 14.0, -2.0
+
+ct_old, cp_old, results_old = RunFullSimulation(c_slope_old, c_const_old, t_slope_old, pitch_old, 8.0)
+
+# 2. Create Plotting Dashboard
+fig, axs = plt.subplots(2, 2, figsize=(15, 12))
+fig.suptitle(f'Comparison: Baseline vs. Optimized Blade (TSR=8)\n'
+             f'Old: CP={ct_old:.4f}, CT={cp_old:.4f} | New: CP={cp_val_tsr8:.4f}, CT={ct_val_tsr8:.4f}', fontsize=16)
+
+r_R = results_tsr8[:, 2]
+
+# --- Plot 1: Geometry (Chord and Twist) ---
+ax1 = axs[0, 0]
+ax1.set_title('Blade Geometry')
+# Chord
+ax1.plot(r_R, c_slope_old*(1-r_R)+c_const_old, 'k--', label='Old Chord [m]')
+ax1.plot(r_R, c_slope*(1-r_R)+c_const, 'b-', label='New Chord [m]')
+ax1.set_ylabel('Chord [m]', color='b')
+ax1.tick_params(axis='y', labelcolor='b')
+# Twist on twin axis
+ax1b = ax1.twinx()
+ax1b.plot(r_R, t_slope_old*(1-r_R)+pitch_old, 'k:', label='Old Twist [deg]')
+ax1b.plot(r_R, t_slope*(1-r_R)+pitch, 'r-', label='New Twist [deg]')
+ax1b.set_ylabel('Twist [deg]', color='r')
+ax1b.tick_params(axis='y', labelcolor='r')
+ax1.grid(True)
+ax1.legend(loc='upper right', fontsize='small')
+
+# --- Plot 2: Induction Factors (a and a') ---
+ax2 = axs[0, 1]
+ax2.set_title('Induction Factors')
+ax2.plot(r_R, results_old[:, 0], 'k--', label='Old $a$')
+ax2.plot(r_R, results_tsr8[:, 0], 'r-', label='New $a$ (Target 0.25)')
+ax2.plot(r_R, results_old[:, 1], 'k:', label="Old $a'$")
+ax2.plot(r_R, results_tsr8[:, 1], 'g-', label="New $a'$")
+ax2.set_ylabel('Induction Factor')
+ax2.grid(True)
+ax2.legend()
+
+# --- Plot 3: Aerodynamic Angles (Alpha and Phi) ---
+ax3 = axs[1, 0]
+ax3.set_title('Angles of Attack and Inflow')
+ax3.plot(r_R, results_old[:, 6], 'k--', label=r'Old $\alpha$')
+ax3.plot(r_R, results_tsr8[:, 6], 'b-', label=r'New $\alpha$ (Target $\alpha_{opt}$)')
+ax3.plot(r_R, results_old[:, 7], 'k:', label=r'Old $\phi$')
+ax3.plot(r_R, results_tsr8[:, 7], 'm-', label=r'New $\phi$')
+ax3.set_ylabel('Angle [deg]')
+ax3.grid(True)
+ax3.legend()
+
+# --- Plot 4: Sectional Loads (Fnorm and Ftan) ---
+ax4 = axs[1, 1]
+ax4.set_title('Sectional Loads (Non-dimensioned)')
+# Normalize forces: F / (0.5 * rho * U0^2 * R)
+norm = 0.5 * rho * U0**2 * Radius
+ax4.plot(r_R, results_old[:, 3]/norm, 'k--', label='Old $F_{norm}$')
+ax4.plot(r_R, results_tsr8[:, 3]/norm, 'r-', label='New $F_{norm}$')
+ax4.plot(r_R, results_old[:, 4]/norm, 'k:', label='Old $F_{tan}$')
+ax4.plot(r_R, results_tsr8[:, 4]/norm, 'g-', label='New $F_{tan}$')
+ax4.set_ylabel(r'Force Coefficient $F / (\frac{1}{2} \rho U_0^2 R)$')
+ax4.grid(True)
+ax4.legend()
+
+for ax in axs.flat:
+    ax.set_xlabel('r/R')
+
+plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+plt.show()
