@@ -123,7 +123,7 @@ ct_history_tsr8 = []
 print(f"{'TSR':<10} | {'CT':<10} | {'CP':<10}")
 print("-" * 35)
 
-for TSR in [6, 8, 10]:
+for TSR in np.arange(6, 11, 1):
     Omega = U0 * TSR / Radius
 
     temp_results = []
@@ -173,6 +173,37 @@ def save_and_show(filename):
     print(f"Saved: {filename}")
     plt.show()
 
+## ================================================================== ##
+## Comparison: Influence of Tip Correction (TSR=8)
+## ================================================================== ##
+
+results_tsr8_no_corr = []
+TSR_comp = 8
+Omega_comp = U0 * TSR_comp / Radius
+
+# Run the simulation again for TSR=8 but without Prandtl correction (F=1)
+for i in range(len(r_R_bins) - 1):
+    rm = (r_R_bins[i] + r_R_bins[i+1]) / 2
+    chord = 3 * (1 - rm) + 1
+    twist = -(14 * (1 - rm) + Pitch)
+    
+    # Simple logic to solve without correction (manual override of F=1)
+    a_nc, aline_nc = 0.1, 0
+    for _ in range(300):
+        Urot = U0 * (1 - a_nc)
+        Utan = (1 + aline_nc) * Omega_comp * rm * Radius
+        fn, ft, gam, alp, phi = LoadBladeElement(Urot, Utan, chord, twist, polar_alpha, polar_cl, polar_cd)
+        CT_loc = (fn * Radius * delta_r_R * NBlades) / (0.5 * (2*np.pi*rm*Radius*delta_r_R*Radius) * U0**2)
+        anew_nc = ainduction(CT_loc)
+        # F is skipped here (effectively F=1.0)
+        a_nc = 0.75 * a_nc + 0.25 * anew_nc
+        aline_nc = (ft * NBlades) / (2 * np.pi * U0 * (1 - a_nc) * Omega_comp * 2 * (rm * Radius)**2)
+        
+    results_tsr8_no_corr.append([a_nc, aline_nc, rm, fn, ft])
+
+res_nc = np.array(results_tsr8_no_corr)
+
+'''
 # Plot a: anlge of attack and inflow angle
 plt.figure(figsize=(9, 5))
 plt.plot(results_tsr8[:, 2], results_tsr8[:, 6], 'b-', label=r'Angle of attack ($\alpha$)')
@@ -216,35 +247,183 @@ ct_plot_list = [tsr_performance[t]['CT'] for t in tsr_plot_list]
 # Torque Coefficient CQ = CP / TSR
 cq_plot_list = [tsr_performance[t]['CP'] / t for t in tsr_plot_list]
 
+# --- Plot 4a: Total Thrust Coefficient (CT) vs. TSR ---
 plt.figure(figsize=(9, 5))
 plt.plot(tsr_plot_list, ct_plot_list, 'bo-', label=r'Total thrust coefficient ($C_T$)')
-plt.plot(tsr_plot_list, cq_plot_list, 'ro-', label=r'Total torque coefficient ($C_Q$)')
-plt.title('Total Thrust and Torque Coefficients vs. Tip-Speed Ratio')
+plt.title('Total thrust coefficient vs. Tip-Speed Ratio')
 plt.xlabel('Tip-Speed Ratio (TSR)')
-plt.ylabel('Coefficient')
+plt.ylabel(r'Thrust coefficient $C_T$')
 plt.grid(True)
 plt.legend()
-save_and_show("4_Total_Performance_vs_TSR.png")
+save_and_show("4a_Thrust_vs_TSR.png")
 
-# Plot 5: BEM Convergence History
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-fig.suptitle('BEM Solver Convergence for Total Thrust (TSR=8)', fontsize=14)
+# --- Plot 4b: Total Torque Coefficient (CQ) vs. TSR ---
+plt.figure(figsize=(9, 5))
+plt.plot(tsr_plot_list, cq_plot_list, 'ro-', label=r'Total torque coefficient ($C_Q$)')
+plt.title('Total torque coefficient vs. Tip-Speed Ratio')
+plt.xlabel('Tip-Speed Ratio (TSR)')
+plt.ylabel(r'Torque coefficient $C_Q$')
+plt.grid(True)
+plt.legend()
+save_and_show("4b_Torque_vs_TSR.png")
+'''
 
-# Absolute CT Plot
-ax1.plot(range(200), ct_history_tsr8, 'b-', linewidth=2)
-ax1.set_title(r'Total $C_T$ vs Iterations')
-ax1.set_xlabel('Iteration Step')
-ax1.set_ylabel(r'Total $C_T$')
-ax1.grid(True)
+'''
+# --- Plot 6a: Influence of Tip Correction on Axial Induction ---
+plt.figure(figsize=(9, 5))
+plt.plot(results_tsr8[:, 2], results_tsr8[:, 0], 'b-', label='With correction')
+plt.plot(res_nc[:, 2], res_nc[:, 0], 'r-', label='No correction')
+plt.title('Influence of Prandtl tip/root correction on axial induction (TSR=8)')
+plt.xlabel('r/R')
+plt.ylabel('Axial induction factor $a$')
+plt.grid(True)
+plt.legend()
+# Saving as 6a
+save_and_show("6a_Induction_Correction_Influence.png")
 
-# Difference in CT Plot (Log Scale)
-diff_CT = np.abs(np.diff(ct_history_tsr8))
-ax2.semilogy(range(1, 200), diff_CT, 'r-', linewidth=2)
-ax2.set_title(r'Absolute Difference ($\Delta C_T$)')
-ax2.set_xlabel('Iteration Step')
-ax2.set_ylabel(r'$|C_{T_{i}} - C_{T_{i-1}}|$')
-ax2.grid(True)
+# --- Plot 6b: Influence of Tip Correction on Normal Loading ---
+plt.figure(figsize=(9, 5))
+norm_val = 0.5 * U0**2 * Radius
+plt.plot(results_tsr8[:, 2], results_tsr8[:, 3]/norm_val, 'b-', label='With correction')
+plt.plot(res_nc[:, 2], res_nc[:, 3]/norm_val, 'r-', label='No correction')
+plt.title('Influence of Prandtl tip/root correction on normal loading (TSR=8)')
+plt.xlabel('r/R')
+# Using double backslashes for LaTeX to avoid the parser error we saw earlier
+plt.ylabel(r'$F_{norm} / (0.5 \rho U_{\infty}^2 R)$') 
+plt.grid(True)
+plt.legend()
+# Saving as 6b
+save_and_show("6b_Loading_Correction_Influence.png")
+'''
 
-plt.tight_layout()
 
-plt.show()
+'''
+# --- Plot 5a: BEM Convergence History (Total Rotor CT) ---
+
+plt.figure(figsize=(7, 5))
+plt.plot(range(1, 201), ct_history_tsr8, 'b-', linewidth=2)
+plt.xlim(1,100)
+plt.title('Convergence history of total thrust coefficient ($C_T$) (TSR=8)')
+plt.xlabel('Iteration step')
+plt.ylabel('Total $C_T$')
+plt.grid(True)
+save_and_show("5_Convergence_History.png")
+
+# --- Plot 5b: BEM Convergence Residuals (Log Scale) ---
+plt.figure(figsize=(7, 5))
+
+# 1. Calculate the absolute difference between consecutive iterations
+# np.diff computes ct[i] - ct[i-1]
+residuals = np.abs(np.diff(ct_history_tsr8))
+
+# 2. Use semilogy for the log-y axis
+# The x-axis starts at 2 because the first 'difference' is between step 1 and 2
+plt.semilogy(range(2, 201), residuals, 'r-', linewidth=2, label='Residual $|C_{T,i} - C_{T,i-1}|$')
+plt.xlim(1,100)
+plt.title('Convergence residuals of total thrust coefficient (TSR=8)')
+plt.xlabel('Iteration step')
+plt.ylabel('Absolute difference in $C_T$')
+plt.grid(True, which="both", ls="-", alpha=0.5) # 'both' shows major and minor log lines
+plt.legend()
+
+save_and_show("5_Convergence_Residuals_Log.png")
+'''
+
+'''
+## ================================================================== ##
+## Influence of Number of Annuli - Separate Plots (TSR=8)
+## ================================================================== ##
+
+# List of resolutions to test
+N_values = [8, 20, 100]
+
+for N in N_values:
+    # 1. Create a fresh figure for each N
+    plt.figure(figsize=(7, 5))
+    
+    # Define bins for this specific resolution
+    r_R_bins_N = np.linspace(RootLocation_R, TipLocation_R, N + 1)
+    results_N = []
+    
+    # 2. Run the BEM logic for each annulus
+    for i in range(N):
+        rm = (r_R_bins_N[i] + r_R_bins_N[i+1]) / 2
+        chord = 3 * (1 - rm) + 1
+        twist = -(14 * (1 - rm) + Pitch)
+        
+        # Solving using your SolveStreamtube function
+        res, _ = SolveStreamtube(U0, r_R_bins_N[i], r_R_bins_N[i+1], RootLocation_R, 
+                                 TipLocation_R, Omega_comp, Radius, NBlades, 
+                                 chord, twist, polar_alpha, polar_cl, polar_cd)
+        results_N.append(res)
+    
+    res_N_arr = np.array(results_N)
+    
+    # 3. Plotting logic
+    # Use markers for N=10 and N=30 to show the discretization points
+    fmt = '-'
+    plt.plot(res_N_arr[:, 2], res_N_arr[:, 3]/(0.5*U0**2*Radius), fmt, label=f'Annuli = {N}')
+    
+    plt.title(f'Normal loading distribution ($C_n$) with {N} Annuli')
+    plt.xlabel('r/R')
+    # Using the "safe" double backslash for LaTeX labels
+    plt.ylabel(r'$C_n = F_{norm} / (0.5 \rho U_{\infty}^2 R)$')
+    plt.grid(True)
+    plt.legend()
+    
+    # 4. Save each plot with a unique filename
+    save_and_show(f"7_Annuli_Influence_N{N}.png")
+'''
+
+## ================================================================== ##
+## Influence of Spacing Method (TSR=8, N=40)
+## ================================================================== ##
+N_fixed = 40
+spacing_methods = {}
+
+# Constant Spacing
+spacing_methods['Constant'] = np.linspace(RootLocation_R, TipLocation_R, N_fixed + 1)
+
+# Cosine Spacing (Clusters points at Tip and Root)
+beta = np.linspace(0, np.pi, N_fixed + 1)
+spacing_methods['Cosine'] = RootLocation_R + (TipLocation_R - RootLocation_R) * 0.5 * (1 - np.cos(beta))
+
+plt.figure(figsize=(9, 5))
+
+# Style mapping for clarity
+line_styles = {'Constant': '-', 'Cosine': '--'}
+colors = {'Constant': 'blue', 'Cosine': 'red'}
+
+for label, bins in spacing_methods.items():
+    results_spacing = []
+    for i in range(N_fixed):
+        rm = (bins[i] + bins[i+1]) / 2
+        chord = 3 * (1 - rm) + 1
+        twist = -(14 * (1 - rm) + Pitch)
+        res, _ = SolveStreamtube(U0, bins[i], bins[i+1], RootLocation_R, TipLocation_R, 
+                                 Omega_comp, Radius, NBlades, chord, twist, 
+                                 polar_alpha, polar_cl, polar_cd)
+        results_spacing.append(res)
+    
+    res_S_arr = np.array(results_spacing)
+    
+    # Apply custom styles here
+    plt.plot(res_S_arr[:, 2], res_S_arr[:, 3]/(0.5*U0**2*Radius), 
+             marker='o', 
+             linestyle=line_styles[label], 
+             color=colors[label],
+             markersize=5, 
+             linewidth=2,
+             label=f'{label} Spacing')
+
+plt.title('Comparison of spacing methods (N=40)')
+plt.xlabel('r/R')
+# Using the "safe" double backslash for LaTeX labels to avoid parser errors
+plt.ylabel(r'$C_n = F_{norm} / (0.5 \rho U_{\infty}^2 R)$')
+plt.grid(True)
+plt.legend()
+
+# Zoom in on the tip to see the difference clearly
+plt.xlim(0.85, 1.01) 
+plt.ylim(0.5,  1.5)
+save_and_show("8_Spacing_Method_Comparison.png")
