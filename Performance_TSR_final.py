@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -111,6 +113,10 @@ def SolveStreamtube(U0, r1_R, r2_R, rootradius_R, tipradius_R, Omega, Radius, NB
 ## Solving for different TSRs and collecting results
 ## ================================================================== ##
 
+# Storage for Plot 4
+tsr_performance = {} 
+results_tsr8 = []
+ct_history_tsr8 = []
 results_tsr8 = []
 ct_history_tsr8 = []
 
@@ -141,6 +147,9 @@ for TSR in [6, 8, 10]:
 
     print(f"{TSR:<10.1f} | {CT:<10.4f} | {CP:<10.4f}")
     
+    # Store the results for this TSR
+    tsr_performance[TSR] = {'CT': CT, 'CP': CP}
+    
     if TSR == 8: 
         results_tsr8 = res_arr
         
@@ -153,32 +162,69 @@ for TSR in [6, 8, 10]:
 ## Plotting results for TSR=8
 ## ================================================================== ##
 
-# Plot 1: Axial and tangential induction
-plt.figure(figsize=(10, 5))
-plt.plot(results_tsr8[:, 2], results_tsr8[:, 0], 'r-', label=r'$a$')
-plt.plot(results_tsr8[:, 2], results_tsr8[:, 1], 'g--', label=r'$a^\prime$')
-plt.title('Induction Factors along the Span (TSR=8)')
-plt.xlabel('r/R'); plt.grid(); plt.legend(); plt.show()
+base_path = os.path.dirname(os.path.abspath(__file__))
+save_folder = os.path.join(base_path, "plots_BEM")
+os.makedirs(save_folder, exist_ok=True)
 
-# Plot 2: Normal and tangential force
-plt.figure(figsize=(10, 5))
-plt.plot(results_tsr8[:, 2], results_tsr8[:, 3]/(0.5*U0**2*Radius), 'r-', label=r'$F_{norm}$')
-plt.plot(results_tsr8[:, 2], results_tsr8[:, 4]/(0.5*U0**2*Radius), 'g--', label=r'$F_{tan}$')
-plt.title(r'Non-dimensioned Forces along the Span ($F / \frac{1}{2} \rho U_\infty^2 R$)')
-plt.xlabel('r/R'); plt.grid(); plt.legend(); plt.show()
+# Helper function to save and show to keep the code clean
+def save_and_show(filename):
+    save_path = os.path.join(save_folder, filename)
+    plt.savefig(save_path, dpi=400, bbox_inches='tight')
+    print(f"Saved: {filename}")
+    plt.show()
 
-# Plot 3: Circulation
-plt.figure(figsize=(10, 5))
-plt.plot(results_tsr8[:, 2], results_tsr8[:, 5]/(np.pi*U0**2/(NBlades*(U0*8/Radius))), 'b-', label=r'$\Gamma$')
-plt.title('Non-dimensioned Circulation Distribution')
-plt.xlabel('r/R'); plt.grid(); plt.legend(); plt.show()
+# Plot a: anlge of attack and inflow angle
+plt.figure(figsize=(9, 5))
+plt.plot(results_tsr8[:, 2], results_tsr8[:, 6], 'b-', label=r'Angle of attack ($\alpha$)')
+plt.plot(results_tsr8[:, 2], results_tsr8[:, 7], 'r-', label=r'Inflow angle ($\phi$)')
+plt.title('Spanwise distribution of angle of attack and inflow angle (TSR=8)')
+plt.xlabel('r/R')
+plt.ylabel('Angle [deg]')
+plt.grid(True)
+plt.legend()
+save_and_show("1_Alpha_Phi_Distribution.png")
 
-# Plot 4: Angle of Attack and inflow angle
-plt.figure(figsize=(10, 5))
-plt.plot(results_tsr8[:, 2], results_tsr8[:, 6], 'k-', label=r'$\alpha$')
-plt.plot(results_tsr8[:, 2], results_tsr8[:, 7], 'm--', label=r'$\phi$')
-plt.title('Spanwise Angle of Attack and Inflow Angle (deg)')
-plt.xlabel('r/R'); plt.grid(); plt.legend(); plt.show()
+# --- Plot 2: Spanwise distribution of axial and azimuthal inductions ---
+plt.figure(figsize=(9, 5))
+plt.plot(results_tsr8[:, 2], results_tsr8[:, 0], 'b-', label=r'Axial induction ($a$)')
+plt.plot(results_tsr8[:, 2], results_tsr8[:, 1], 'r-', label=r'Azimuthal induction ($a^\prime$)')
+plt.title('Spanwise distribution of axial and azimuthal inductions (TSR=8)')
+plt.xlabel('r/R')
+plt.ylabel('Induction factor')
+plt.grid(True)
+plt.legend()
+save_and_show("2_Induction_Factors.png")
+
+# --- Plot 3: Spanwise distribution of thrust and azimuthal loading ---
+# Normalizing by 0.5 * rho * U0^2 * Radius (Non-dimensional sectional loading)
+plt.figure(figsize=(9, 5))
+cn = results_tsr8[:, 3] / (0.5 * U0**2 * Radius) # Normal force coefficient per unit span
+ct = results_tsr8[:, 4] / (0.5 * U0**2 * Radius) # Tangential force coefficient per unit span
+plt.plot(results_tsr8[:, 2], cn, 'b-', label=r'Thrust loading ($C_n$)')
+plt.plot(results_tsr8[:, 2], ct, 'r-', label=r'Azimuthal loading ($C_t$)')
+plt.title('Spanwise distribution of thrust and azimuthal loading (TSR=8)')
+plt.xlabel('r/R')
+plt.ylabel(r'Sectional load coefficient $F / (\frac{1}{2} U_\infty^2 R)$')
+plt.grid(True)
+plt.legend()
+save_and_show("3_Spanwise_Loading.png")
+
+# --- Plot 4: Total thrust and torque versus tip-speed ratio ---
+# Extracting data from our performance dictionary
+tsr_plot_list = sorted(tsr_performance.keys())
+ct_plot_list = [tsr_performance[t]['CT'] for t in tsr_plot_list]
+# Torque Coefficient CQ = CP / TSR
+cq_plot_list = [tsr_performance[t]['CP'] / t for t in tsr_plot_list]
+
+plt.figure(figsize=(9, 5))
+plt.plot(tsr_plot_list, ct_plot_list, 'bo-', label=r'Total thrust coefficient ($C_T$)')
+plt.plot(tsr_plot_list, cq_plot_list, 'ro-', label=r'Total torque coefficient ($C_Q$)')
+plt.title('Total Thrust and Torque Coefficients vs. Tip-Speed Ratio')
+plt.xlabel('Tip-Speed Ratio (TSR)')
+plt.ylabel('Coefficient')
+plt.grid(True)
+plt.legend()
+save_and_show("4_Total_Performance_vs_TSR.png")
 
 # Plot 5: BEM Convergence History
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
@@ -200,4 +246,5 @@ ax2.set_ylabel(r'$|C_{T_{i}} - C_{T_{i-1}}|$')
 ax2.grid(True)
 
 plt.tight_layout()
+
 plt.show()
