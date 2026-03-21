@@ -1,0 +1,12 @@
+quantity,value
+TSR,8.0
+CT_target,0.75
+CT_initial_coarse,0.6561128494821817
+CP_initial_coarse,0.4491023104230095
+CT_initial_final,0.6549185689667535
+CP_initial_final,0.4477702762535442
+CT_optimized_coarse,0.7499999938257319
+CP_optimized_coarse,0.4792906480375022
+CT_optimized_final,0.7488670772597689
+CP_optimized_final,0.4778547375147938
+CP_actuator_disk,0.5625

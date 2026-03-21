@@ -1,0 +1,14 @@
+quantity,value
+alpha_opt_deg,8.734
+classical_scalar_a,0.25
+classical_kc,1.5080841081718044
+CT_target,0.75
+CP_actuator_disk,0.5625
+CT_classical_coarse,0.749999323623533
+CP_classical_coarse,0.36559785160442915
+CT_classical_final,0.7503298758370391
+CP_classical_final,0.36653208623579087
+CT_hybrid_coarse,0.7499978647433556
+CP_hybrid_coarse,0.42907214184816084
+CT_hybrid_final,0.7484200006408622
+CP_hybrid_final,0.42648995978849713
