@@ -218,13 +218,13 @@ def evaluate_rotor(r_nodes, c_nodes, twist_nodes_deg, tsr=TSR_design):
 # Polynomial design parameterisation
 # =============================================================================
 #
-# 7 free parameters:
-#   params = [pitch, t_root, t_tip, t_curve, c_tip, c2, c3]
+# 8 free parameters:
+#   params = [pitch, t_root, t_tip, t_curve, c_tip, c2, c3, c4]
 #
-# Chord — cubic pinned at root:
+# Chord — quartic pinned at root:
 #   x = (r/R - RootLocation_R) / (TipLocation_R - RootLocation_R)
-#   c(x) = CHORD_ROOT + b1*x + c2*x^2 + c3*x^3
-#   with b1 chosen so c(1) = c_tip  =>  b1 = c_tip - CHORD_ROOT - c2 - c3
+#   c(x) = CHORD_ROOT + b1*x + c2*x^2 + c3*x^3 + c4*x^4
+#   with b1 chosen so c(1) = c_tip  =>  b1 = c_tip - CHORD_ROOT - c2 - c3 - c4
 #
 # Twist — quadratic with global pitch offset:
 #   twist(x) = pitch + t_root*(1-x) + t_tip*x + t_curve*x*(1-x)
@@ -236,10 +236,10 @@ def _span_x(r_R):
     return (r_R - RootLocation_R) / (TipLocation_R - RootLocation_R)
 
 
-def chord_poly(r_R, c_tip, c2, c3):
+def chord_poly(r_R, c_tip, c2, c3, c4):
     x  = _span_x(r_R)
-    b1 = c_tip - CHORD_ROOT - c2 - c3
-    return CHORD_ROOT + b1 * x + c2 * x ** 2 + c3 * x ** 3
+    b1 = c_tip - CHORD_ROOT - c2 - c3 - c4
+    return CHORD_ROOT + b1 * x + c2 * x ** 2 + c3 * x ** 3 + c4 * x ** 4
 
 
 def twist_poly(r_R, pitch, t_root, t_tip, t_curve):
@@ -252,11 +252,11 @@ def build_geometry(params, delta_r_R=delta_r_R_opt):
     Convert parameter vector to (r_nodes, c_nodes, twist_nodes_deg) arrays
     ready to pass into evaluate_rotor.
     """
-    pitch, t_root, t_tip, t_curve, c_tip, c2, c3 = params
+    pitch, t_root, t_tip, t_curve, c_tip, c2, c3, c4 = params
 
     r_R_nodes = np.arange(RootLocation_R, TipLocation_R + delta_r_R / 2, delta_r_R)
     r_nodes   = r_R_nodes * Radius
-    c_nodes   = np.array([chord_poly(r, c_tip, c2, c3) for r in r_R_nodes])
+    c_nodes   = np.array([chord_poly(r, c_tip, c2, c3, c4) for r in r_R_nodes])
     tw_nodes  = np.array([twist_poly(r, pitch, t_root, t_tip, t_curve) for r in r_R_nodes])
 
     return r_nodes, c_nodes, tw_nodes
@@ -264,9 +264,9 @@ def build_geometry(params, delta_r_R=delta_r_R_opt):
 
 def chord_min_max(params, n=300):
     """Evaluate min and max chord over a dense spanwise grid."""
-    _, _, _, _, c_tip, c2, c3 = params
+    _, _, _, _, c_tip, c2, c3, c4 = params
     r_R_dense = np.linspace(RootLocation_R, TipLocation_R, n)
-    c_dense   = np.array([chord_poly(r, c_tip, c2, c3) for r in r_R_dense])
+    c_dense   = np.array([chord_poly(r, c_tip, c2, c3, c4) for r in r_R_dense])
     return float(np.min(c_dense)), float(np.max(c_dense))
 
 
@@ -285,7 +285,7 @@ def objective(params):
       • Curvature regularisation: 0.05 * t_curve² + 0.01 * (c2² + c3²)
         (discourages wildly non-linear distributions without over-constraining)
     """
-    pitch, t_root, t_tip, t_curve, c_tip, c2, c3 = params
+    pitch, t_root, t_tip, t_curve, c_tip, c2, c3, c4 = params
 
     c_min, c_max = chord_min_max(params)
     penalty = 0.0
@@ -306,7 +306,7 @@ def objective(params):
     CT, CP, _ = evaluate_rotor(r_nodes, c_nodes, tw_nodes)
 
     penalty += 5e3 * (CT - CT_target) ** 2
-    penalty += 0.05 * t_curve ** 2 + 0.01 * (c2 ** 2 + c3 ** 2)
+    penalty += 0.05 * t_curve ** 2 + 0.01 * (c2 ** 2 + c3 ** 2 + c4 ** 2)
 
     return -CP + penalty
 
@@ -319,7 +319,7 @@ def optimize(n_starts=12, random_seed=42):
     """
     Multi-start L-BFGS-B optimisation.
 
-    Parameter order: [pitch, t_root, t_tip, t_curve, c_tip, c2, c3]
+    Parameter order: [pitch, t_root, t_tip, t_curve, c_tip, c2, c3, c4]
 
     Bounds are generous — the CT penalty and chord penalties do the real
     constraining.  The first start is a nominal guess near the baseline;
@@ -335,10 +335,11 @@ def optimize(n_starts=12, random_seed=42):
         (0.3,   2.0),    # c_tip     [m]
         (-5.0,  5.0),    # c2
         (-5.0,  5.0),    # c3
+        (-5.0,  5.0),    # c4  (quartic term)
     ]
 
     # Nominal start close to the original baseline geometry
-    x0_nominal = np.array([-2.0, -7.0, 2.0, 0.0, 1.0, 0.0, 0.0])
+    x0_nominal = np.array([-2.0, -7.0, 2.0, 0.0, 1.0, 0.0, 0.0, 0.0])
 
     starts = [x0_nominal]
     for _ in range(n_starts - 1):
@@ -348,6 +349,7 @@ def optimize(n_starts=12, random_seed=42):
             rng.uniform(-5.0,  10.0),
             rng.uniform(-10.0, 10.0),
             rng.uniform(0.3,    1.5),
+            rng.uniform(-3.0,   3.0),
             rng.uniform(-3.0,   3.0),
             rng.uniform(-3.0,   3.0),
         ]))
@@ -400,7 +402,7 @@ def get_baseline(delta_r_R=delta_r_R_final):
 # =============================================================================
 
 base_path   = os.path.dirname(os.path.abspath(__file__))
-save_folder = os.path.join(base_path, "plots_poly_opt")
+save_folder = os.path.join(base_path, "plots_poly_opt_quartic")
 os.makedirs(save_folder, exist_ok=True)
 
 
@@ -416,7 +418,7 @@ def plot_all(params_opt,
              r_opt,  c_opt,  tw_opt,  res_opt,
              CT_base, CP_base, CT_opt, CP_opt):
 
-    pitch, t_root, t_tip, t_curve, c_tip, c2, c3 = params_opt
+    pitch, t_root, t_tip, t_curve, c_tip, c2, c3, c4 = params_opt
 
     r_R_base = res_base[:, 2]
     r_R_opt  = res_opt[:, 2]
@@ -426,7 +428,7 @@ def plot_all(params_opt,
     r_R_dense  = np.linspace(RootLocation_R, TipLocation_R, 400)
     c_base_den = 3.0 * (1 - r_R_dense) + 1.0
     tw_base_den = -(14.0 * (1 - r_R_dense) + (-2.0))
-    c_opt_den  = np.array([chord_poly(r, c_tip, c2, c3) for r in r_R_dense])
+    c_opt_den  = np.array([chord_poly(r, c_tip, c2, c3, c4) for r in r_R_dense])
     tw_opt_den = np.array([twist_poly(r, pitch, t_root, t_tip, t_curve) for r in r_R_dense])
 
     # ── Plot 1: chord ─────────────────────────────────────────────────────────
@@ -531,7 +533,7 @@ if __name__ == "__main__":
     r_opt, c_opt, tw_opt = build_geometry(best_params, delta_r_R_final)
     CT_opt, CP_opt, res_opt = evaluate_rotor(r_opt, c_opt, tw_opt)
 
-    pitch_opt, t_root_opt, t_tip_opt, t_curve_opt, c_tip_opt, c2_opt, c3_opt = best_params
+    pitch_opt, t_root_opt, t_tip_opt, t_curve_opt, c_tip_opt, c2_opt, c3_opt, c4_opt = best_params
     c_min_opt, c_max_opt = chord_min_max(best_params)
 
     print("\n" + "=" * 65)
@@ -544,6 +546,7 @@ if __name__ == "__main__":
     print(f"  c_tip       : {c_tip_opt:.4f} m")
     print(f"  c2          : {c2_opt:+.4f}")
     print(f"  c3          : {c3_opt:+.4f}")
+    print(f"  c4          : {c4_opt:+.4f}")
     print(f"  CT          : {CT_opt:.6f}  (target {CT_target})")
     print(f"  CP          : {CP_opt:.6f}")
     print(f"  chord range : {c_min_opt:.4f} – {c_max_opt:.4f} m")
@@ -563,14 +566,15 @@ if __name__ == "__main__":
     print(f"CP improvement  = {100*(CP_opt - CP_base)/abs(CP_base):.2f} %")
 
     # ── Polynomial form ───────────────────────────────────────────────────────
-    b1 = c_tip_opt - CHORD_ROOT - c2_opt - c3_opt
+    b1 = c_tip_opt - CHORD_ROOT - c2_opt - c3_opt - c4_opt
     print("\n" + "=" * 65)
     print("POLYNOMIAL DISTRIBUTIONS  (x = (r/R − 0.2) / 0.8)")
     print("=" * 65)
     print(f"Chord:  c(x) = {CHORD_ROOT:.4f}"
           f" + ({b1:+.4f})·x"
           f" + ({c2_opt:+.4f})·x²"
-          f" + ({c3_opt:+.4f})·x³   [m]")
+          f" + ({c3_opt:+.4f})·x³"
+          f" + ({c4_opt:+.4f})·x⁴   [m]")
     print(f"Twist:  t(x) = {pitch_opt:+.4f}"
           f" + ({t_root_opt:+.4f})·(1−x)"
           f" + ({t_tip_opt:+.4f})·x"
@@ -591,7 +595,7 @@ if __name__ == "__main__":
         "chord_m":   c_opt,
         "twist_deg": tw_opt,
     })
-    csv_path = os.path.join(save_folder, "poly_opt_geometry.csv")
+    csv_path = os.path.join(save_folder, "poly_opt_quartic_geometry.csv")
     df.to_csv(csv_path, index=False)
     print(f"\nGeometry saved to: {csv_path}")
     print("\nDone.")

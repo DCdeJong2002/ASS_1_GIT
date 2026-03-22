@@ -30,7 +30,7 @@ TSR_design = 8.0
 CT_target  = 0.75
 
 MAX_CHORD     = 3.4        # Structural root limit [m]
-MIN_CHORD_TIP = 0.3        # Manufacturing tip limit [m]
+MIN_CHORD_TIP = 0.2        # Manufacturing tip limit [m]
 
 # =============================================================================
 # Prandtl formula toggle
@@ -481,7 +481,7 @@ def plot_all(r_base, c_base, tw_base, res_base,
     # ── Plot 1: chord distribution ──────────────────────────────────────────
     plt.figure(figsize=(9, 5))
     plt.plot(r_R_base, c_base_mid, label=f"Baseline  (CT={CT_base:.3f})")
-    plt.plot(r_opt / Radius, c_opt,  label=f"Analytical opt  (CT={CT_opt:.3f})", linestyle="--")
+    plt.plot(r_opt / Radius, c_opt,  label=f"Analytical opt  (CT={CT_opt:.3f})")
     plt.axhline(MIN_CHORD_TIP, color="grey", linestyle=":", linewidth=1, label="Min chord")
     plt.axhline(MAX_CHORD,     color="grey", linestyle="--", linewidth=1, label="Max chord")
     plt.xlabel("r/R")
