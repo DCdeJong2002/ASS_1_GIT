@@ -1,8 +1,0 @@
-quantity,value
-TSR,8.0
-CT_target,0.75
-CT_baseline,0.6553075686927354
-CP_baseline,0.4481350006640704
-CT_optimized,0.7499999951792091
-CP_optimized,0.4783626826297338
-CP_actuator_disk,0.5625
