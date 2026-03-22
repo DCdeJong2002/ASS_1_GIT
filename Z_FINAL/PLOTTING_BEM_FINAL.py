@@ -43,7 +43,9 @@ PLOT_10  = True   # Cl/Cd polar with operating points (needs analytical result)
 # 1.  LOAD RESULTS
 # =============================================================================
 
-npz_path = sys.argv[1] if len(sys.argv) > 1 else "full_bem_results.npz"
+#npz_path = sys.argv[1] if len(sys.argv) > 1 else "full_bem_results.npz"
+
+npz_path =r"C:\Users\douwe\AE4135-Rotor-wake\ASS_1_GIT\Z_FINAL\full_bem_results.npz"
 if not os.path.exists(npz_path):
     raise FileNotFoundError(
         f"Cannot find '{npz_path}'.\n"
@@ -364,7 +366,7 @@ def plot_performance_bar(designs):
 # =============================================================================
 
 save_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           "plots_assignment")
+                           "plotting_plots_assignment")
 os.makedirs(save_folder, exist_ok=True)
 
 def save_fig(name):

@@ -33,7 +33,7 @@ from scipy.optimize import minimize, root_scalar
 USE_HELICAL_PRANDTL = False   # True -> Prandtl 1919; False -> Glauert 1935
 
 N_STARTS   = 12
-TSR_SWEEP  = [6, 7, 8, 9, 10]
+TSR_SWEEP  = [6, 8, 10]
 TSR_DESIGN = 8.0
 CT_TARGET  = 0.75
 
