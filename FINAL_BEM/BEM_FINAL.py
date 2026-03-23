@@ -398,21 +398,21 @@ def _make_objective(quartic):
         if c_min<CHORD_MIN*0.5: return 1e9
         r,c,tw=build_poly_geometry(params); CT,CP,_=evaluate_rotor(r,c,tw)
         pen+=3e3*(CT-CT_TARGET)**2
-        if quartic: _,_,_,t_curve,_,c2,c3,c4=params; pen+=0.001*t_curve**2+0.0005*(c2**2+c3**2+c4**2)
-        else:       _,_,_,t_curve,_,c2,c3=params;    pen+=0.05*t_curve**2+0.01*(c2**2+c3**2)
+        if quartic: _,_,_,t_curve,_,c2,c3,c4=params; pen+=0.001*t_curve**2+0.0005*(c2**2+c3**2+c4**2) #objective function quartic
+        else:       _,_,_,t_curve,_,c2,c3=params;    pen+=0.05*t_curve**2+0.01*(c2**2+c3**2) #objective function cubic
         return -CP+pen
     return obj
 
 def run_poly_optimizer(quartic=False,n_starts=N_STARTS,seed=42):
     rng=np.random.default_rng(seed); obj=_make_objective(quartic); label="quartic" if quartic else "cubic"
     if quartic:
-        bounds=[(-5,5),(-25,5),(-10,15),(-20,20),(0.3,2),(-3,3),(-3,3),(-3,3)]
+        bounds=[(-5,5),(-25,5),(-10,15),(-20,20),(0.3,2),(-3,3),(-3,3),(-3,3)] #parameter bounds quartic
         x0_nom=np.array([-2,-7,2,0,1,0,0,0],dtype=float)
         def _rand(): return np.array([rng.uniform(-6,6),rng.uniform(-20,0),rng.uniform(-5,10),
                                        rng.uniform(-10,10),rng.uniform(0.3,1.5),
                                        rng.uniform(-3,3),rng.uniform(-3,3),rng.uniform(-3,3)])
     else:
-        bounds=[(-5,5),(-25,5),(-10,15),(-20,20),(0.3,2),(-3,3),(-3,3)]
+        bounds=[(-5,5),(-25,5),(-10,15),(-20,20),(0.3,2),(-3,3),(-3,3)] #parameter bounds cubic
         x0_nom=np.array([-2,-7,2,0,1,0,0],dtype=float)
         def _rand(): return np.array([rng.uniform(-6,6),rng.uniform(-20,0),rng.uniform(-5,10),
                                        rng.uniform(-10,10),rng.uniform(0.3,1.5),
@@ -564,20 +564,20 @@ elif PLOT_5:
 #    160 is the production grid (DELTA_R_R=0.005) used as reference.
 #    Plots: Cn, Ct, a, alpha vs r/R; CT and CP vs N; tip-region Cn zoom.
 #
-#  Spacing study: N = 20  (coarse enough that cosine vs constant differs clearly)
+#  Spacing study: N = 20  
 #    Plots: Cn, Ct, a, alpha vs r/R (full span + tip zoom for Cn).
 #
 if PLOT_6 and results_tsr8 is not None:
 
     # ── palette ──────────────────────────────────────────────────────────────
-    # 6 annuli counts: use a sequential blue palette so progression is visible
+    # 6 annuli counts: 
     _ANNULI_N   = [4, 8, 16, 32, 64, 160]
     _ANNULI_COLS = ["#08306b","#2171b5","#6baed6","#bdd7e7","#fd8d3c","#d62728"]
 
     #_ANNULI_N   = [4, 8, 16, 32, 64, 80, 100, 120, 140, 160]
     #_ANNULI_COLS = ["#08306b","#2171b5","#6baed6","#bdd7e7","#fd8d3c","#d62728", "#9467bd","#8c564b","#e377c2","#7f7f7f"]
 
-    # spacing: black = constant, green = cosine
+    # spacing:
     _SPACING_COLS = {"Constant":"#000000","Cosine":"#2ca02c"}
     N_SPACING = 20   # annuli for spacing comparison
 
@@ -753,7 +753,6 @@ elif PLOT_6:
     print("  [SKIP] PLOT_6 — requires RUN_TSR_SWEEP_SPAN")
 
 
-
 # ── 7  Stagnation pressure ──────────────────────────────────────────────────────
 if PLOT_7 and results_tsr8 is not None:
     r_R8 = results_tsr8[:,2]
@@ -774,7 +773,7 @@ if PLOT_7 and results_tsr8 is not None:
     eps = 0.003 * q_inf
 
     # -------------------------------------------------------
-    # LEFT FIGURE: four stations with small offset trick
+    # LEFT FIGURE: four stations with small offset 
     # -------------------------------------------------------
     fig, ax = plt.subplots(figsize=(7,5))
 
@@ -799,7 +798,7 @@ if PLOT_7 and results_tsr8 is not None:
     save_fig("7_stagnation_pressure_four_stations.png")
 
     # -------------------------------------------------------
-    # RIGHT FIGURE: paper-style stagnation pressure drop plot
+    # RIGHT FIGURE: 
     # -------------------------------------------------------
     fig, ax = plt.subplots(figsize=(7,5))
 
@@ -835,7 +834,7 @@ elif PLOT_7:
 if PLOT_8 and res_base is not None:
     r_R_d=np.linspace(RootLocation_R,TipLocation_R,400)
 
-    # Build designs list from whatever was run
+    # Build designs list 
     designs=[("Baseline",
               np.interp(r_R_d,r_base/Radius,c_base),
               np.interp(r_R_d,r_base/Radius,tw_base),
@@ -1074,8 +1073,6 @@ for f in sorted(os.listdir(save_folder)):
 # 11.  SAVE RESULTS
 # =============================================================================
 
-# Both files are saved next to this script so they are always found regardless
-# of the working directory from which Python is invoked.
 _HERE = os.path.dirname(os.path.abspath(__file__))
 BEM_RESULTS_PATH = os.path.join(_HERE, "bem_results.npz")
 OPT_RESULTS_PATH = os.path.join(_HERE, "opt_results.npz")
@@ -1255,7 +1252,7 @@ else:
 
 
 
-#Added later 
+#Added later for chord cl analysis
 def plot_9a_baseline_pitch_sweep(
     pitch_values,
     tsr=8.0,
@@ -1334,4 +1331,5 @@ def plot_9a_baseline_pitch_sweep(
     fig.tight_layout()
     plt.show()
 
-plot_9a_baseline_pitch_sweep(pitch_values=[-6, -4, -2, 0, 2], tsr=8.0)
+if PLOT_7:
+    plot_9a_baseline_pitch_sweep(pitch_values=[-6, -4, -2, 0, 2], tsr=8.0)

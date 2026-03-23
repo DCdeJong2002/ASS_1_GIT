@@ -4,12 +4,12 @@ PLOTTING_BEM_FINAL.py  —  Standalone plotting script
 Authors: Douwe de Jong(5313899), Martijn van Leeuwen(5614422)
 ================================================
 Loads bem_results.npz and opt_results.npz (produced by BEM_FINAL.py) and
-reproduces all assignment plots without re-running any BEM.
+reproduces all  plots without re-running any BEM. In this way the full
+optimization does not need to be run to verify the results.
 
 Usage
 -----
     python PLOTTING_BEM_FINAL.py                           # uses bem_results.npz and opt_results.npz in cwd
-    python PLOTTING_BEM_FINAL.py path/to/bem_results.npz path/to/opt_results.npz  # explicit paths
 
 Plots saved to ./plotting_plots_assignment/
 """
@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 # MENU — choose which plots to produce and whether to display them
 # =============================================================================
 
-SHOW_PLOTS = False   # False -> save and close immediately (non-interactive)
+SHOW_PLOTS = False   # False -> save and close immediately 
                      # True  -> plt.show() after each save
 
 # ── Plots ─────────────────────────────────────────────────────────────────────
@@ -54,14 +54,6 @@ PLOT_10   = True   # Cl/Cd polar with operating points
 #
 # bem_results.npz   — BEM sweeps, tip correction, convergence, section-6 data
 # opt_results.npz   — baseline + all optimised designs (analytical, cubic, quartic)
-#
-# Both files are written next to BEM_FINAL.py by default.
-# You can override either path via command-line:
-#   python PLOTTING_BEM_FINAL.py bem_results.npz opt_results.npz
-# Or override just the first:
-#   python PLOTTING_BEM_FINAL.py path/to/bem_results.npz
-#
-# If opt_results.npz is absent, all PLOT_8/9/10 plots are skipped.
 # =============================================================================
 
 _script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -93,7 +85,7 @@ if _opt_available:
     print(f"Loading opt results from : {opt_path}")
     O = np.load(opt_path, allow_pickle=False)
 else:
-    O = {}   # empty fallback so _oget always returns None/default
+    O = {}   
 
 def _bget(key, default=None):
     """Get from BEM file."""
@@ -126,7 +118,7 @@ _cfg = O if _opt_available else B
 Radius         = _getf(_cfg, "cfg_Radius",         50.0)
 NBlades        = int(_getf(_cfg, "cfg_NBlades",    3))
 U0             = _getf(_cfg, "cfg_U0",             10.0)
-rho            = _getf(_cfg, "cfg_rho",            1.0)      # matches assignment.py
+rho            = _getf(_cfg, "cfg_rho",            1.0)      
 RootLocation_R = _getf(_cfg, "cfg_RootLocation_R", 0.2)
 TipLocation_R  = _getf(_cfg, "cfg_TipLocation_R",  1.0)
 Pitch          = _getf(_cfg, "cfg_Pitch",          -2.0)
@@ -136,14 +128,12 @@ CT_TARGET      = _getf(_cfg, "cfg_CT_TARGET",      0.75)
 TSR_DESIGN     = _getf(_cfg, "cfg_TSR_DESIGN",     8.0)
 DELTA_R_R      = _getf(_cfg, "cfg_DELTA_R_R",      0.005)
 
-# ── Polar — from BEM file (always present) ────────────────────────────────────
+# ── Polar — from BEM file  ────────────────────────────────────
 polar_alpha = B["polar_alpha"]
 polar_cl    = B["polar_cl"]
 polar_cd    = B["polar_cd"]
 
 # ── Spanwise sweep (6, 8, 10) — BEM file ─────────────────────────────────────
-# Only keep TSRs that have an actual per-TSR result array saved.
-# tsr_CT / tsr_CP are aligned to match.
 _all_span_tsrs = [int(t) for t in B["sweep_tsrs"]]
 _span_mask      = [f"sweep_res_{int(t)}" in B.files for t in _all_span_tsrs]
 TSR_SWEEP_SPAN  = [t for t, ok in zip(_all_span_tsrs, _span_mask) if ok]
@@ -213,7 +203,7 @@ def _first(*arrays):
             return a
     return None
 
-# ── Geometry nodes — opt file (with BEM file fallback for baseline) ───────────
+# ── Geometry nodes — opt file  ───────────
 r_base   = _first(_arr_or_none(O, "r_base"),   _arr_or_none(B, "r_base"))
 c_base   = _first(_arr_or_none(O, "c_base"),   _arr_or_none(B, "c_base"))
 tw_base  = _first(_arr_or_none(O, "tw_base"),  _arr_or_none(B, "tw_base"))
@@ -221,13 +211,13 @@ r_anal   = _arr_or_none(O, "r_anal");   c_anal   = _arr_or_none(O, "c_anal");   
 r_cubic  = _arr_or_none(O, "r_cubic");  c_cubic  = _arr_or_none(O, "c_cubic");  tw_cubic  = _arr_or_none(O, "tw_cubic")
 r_qrt    = _arr_or_none(O, "r_qrt");    c_qrt    = _arr_or_none(O, "c_qrt");    tw_qrt    = _arr_or_none(O, "tw_qrt")
 
-# ── BEM results — opt file (with BEM file fallback for baseline) ──────────────
+# ── BEM results — opt file ──────────────
 res_base  = _first(_arr_or_none(O, "res_base"), _arr_or_none(B, "res_base"))
 res_anal  = _arr_or_none(O, "res_anal")
 res_cubic = _arr_or_none(O, "res_cubic")
 res_qrt   = _arr_or_none(O, "res_qrt")
 
-# ── Scalar performance — opt file (with BEM file fallback for baseline) ───────
+# ── Scalar performance — opt file ───────
 def _first_f(*vals):
     for v in vals:
         if v is not None and not (isinstance(v, float) and np.isnan(v)):
@@ -262,7 +252,6 @@ def _tsr_color(idx, n):
     return _TSR_3_COLORS[idx % 3] if n <= 3 else _TSR_MANY_COLORS[idx % len(_TSR_MANY_COLORS)]
 
 # Design comparison: black=Baseline, green=Analytical, red=Cubic, blue=Quartic
-# Same palette for 3 or 4 designs
 _DESIGN_COLORS = {
     "Baseline":     "#000000",   # black
     "Analytical":   "#2ca02c",   # green
@@ -270,7 +259,7 @@ _DESIGN_COLORS = {
     "Quartic poly": "#0000FF",   # blue
 }
 
-def _design_color(label, n=None):   # n kept for API compatibility, unused
+def _design_color(label, n=None):   
     return _DESIGN_COLORS.get(label, "#888888")
 
 # annuli and spacing section colors
@@ -350,20 +339,6 @@ def _tangential_induction_comparison(designs):
 
 
 def _chord_cl_comparison(r_R_dense, designs):
-    """
-    Two-panel figure in the style of plot 9a (twin y-axes per panel).
-
-    Left panel  — Chord [m] on left y-axis, for Analytical (green) and Quartic (blue).
-                  A second right y-axis shows Cl for the same two designs using
-                  dashed lines, so chord and Cl for each design share the same panel
-                  and color.
-
-    Right panel — Same information with Cl on the left y-axis and Chord on the right,
-                  giving a view focused on the aerodynamic quantity.
-
-    This mirrors the 9a convention (solid = primary left quantity,
-    dashed = secondary right quantity, same color per design).
-    """
     targets = {"Analytical", "Quartic poly"}
     subset  = [(lbl, c_d, tw_d, res, CT, CP)
                for (lbl, c_d, tw_d, res, CT, CP) in designs
@@ -652,7 +627,7 @@ if PLOT_7 and results_tsr8 is not None:
     eps = 0.003 * q_inf
 
     # -------------------------------------------------------
-    # LEFT FIGURE: four stations with small offset trick
+    # LEFT FIGURE: four stations with small offset 
     # -------------------------------------------------------
     fig, ax = plt.subplots(figsize=(7,5))
 
@@ -677,7 +652,7 @@ if PLOT_7 and results_tsr8 is not None:
     save_fig("7_stagnation_pressure_four_stations.png")
 
     # -------------------------------------------------------
-    # RIGHT FIGURE: paper-style stagnation pressure drop plot
+    # RIGHT FIGURE: 
     # -------------------------------------------------------
     fig, ax = plt.subplots(figsize=(7,5))
 
@@ -687,7 +662,7 @@ if PLOT_7 and results_tsr8 is not None:
     ax.plot(r_R8, P0_34, color="#FF0000", lw=2.5,
             label=r"Downstream $P_0/q_\infty = (1-2a)^2$")
 
-    # Shade stagnation pressure drop (energy extracted)
+    # Shade stagnation pressure drop 
     ax.fill_between(
         r_R8,
         P0_34,
@@ -846,7 +821,6 @@ def _make_9a_axes(ax, r_mid, cl, chord, col, lbl):
     ax.legend(h1 + h2, l1 + l2, fontsize=8)
 
 if PLOT_9:
-    # Only the three optimised designs (no baseline)
     _opt_lbls = ["Analytical", "Cubic poly", "Quartic poly"]
     _opt_data  = []   # (lbl, r_mid, cl, chord)
     for lbl, r_arr, c_arr, res_arr in [
@@ -921,8 +895,7 @@ if PLOT_9_CMP:
 #   • one combined figure showing all available designs together
 #   • one individual figure per optimised design (Baseline, Analytical, Cubic, Quartic)
 #
-# Scatter points are colored by r/R via viridis.  Each design uses its
-# predefined color as the edge color and a unique marker shape.
+# Scatter points are colored by r/R via viridis. 
 
 if PLOT_10:
     _pol_all = []    # all designs incl. baseline for combined plot
@@ -1120,10 +1093,10 @@ def _plot_stagnation_pressure_for_design(res_arr, design_name, file_tag):
     save_fig(f"7_opt_{file_tag}_stagnation_pressure_drop.png")
 
 
-# Run for the three optimised designs
-_plot_stagnation_pressure_for_design(res_anal,  "Analytical",   "analytical")
-_plot_stagnation_pressure_for_design(res_cubic, "Cubic poly",   "cubic_poly")
-_plot_stagnation_pressure_for_design(res_qrt,   "Quartic poly", "quartic_poly")
+if PLOT_7 and results_tsr8 is not None:
+    _plot_stagnation_pressure_for_design(res_anal,  "Analytical",   "analytical")
+    _plot_stagnation_pressure_for_design(res_cubic, "Cubic poly",   "cubic_poly")
+    _plot_stagnation_pressure_for_design(res_qrt,   "Quartic poly", "quartic_poly")
 
 # =============================================================================
 print("\n" + "="*60)
