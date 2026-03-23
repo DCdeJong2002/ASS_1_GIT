@@ -596,13 +596,13 @@ if PLOT_6 and results_tsr8 is not None and annuli_results and spacing_results:
 
     # 6a7 — Cn tip zoom
     _plot_annuli_quantity(3, r"$C_n = F_n\,/\,(½\rho U_\infty^2 R)$",
-                          "6a7_Cn_tip_zoom_annuli_sensitivity.png", xlim=(0.85, 1.01))
+                          "6a7_Cn_tip_zoom_annuli_sensitivity.png", xlim=(0.8, 1.0))
 
     # ══ SPACING COMPARISON ════════════════════════════════════════════════════
     _plot_spacing_quantity(3, r"$C_n = F_n\,/\,(½\rho U_\infty^2 R)$",
                            "6b1_Cn_vs_rR_spacing_comparison.png")
     _plot_spacing_quantity(3, r"$C_n = F_n\,/\,(½\rho U_\infty^2 R)$",
-                           "6b2_Cn_tip_zoom_spacing_comparison.png", xlim=(0.85, 1.01))
+                           "6b2_Cn_tip_zoom_spacing_comparison.png", xlim=(0.8, 1.0))
     _plot_spacing_quantity(4, r"$C_t = F_t\,/\,(½\rho U_\infty^2 R)$",
                            "6b3_Ct_vs_rR_spacing_comparison.png")
     _plot_spacing_quantity(0, r"$a$ [-]",
@@ -636,41 +636,76 @@ elif PLOT_6:
 
 if PLOT_7 and results_tsr8 is not None:
     r_R8 = results_tsr8[:,2]
-    a_R8 = results_tsr8[:,0]   # axial induction from BEM
+    a_R8 = results_tsr8[:,0]
 
-    # Actuator-disk stagnation pressures (exact from Bernoulli + momentum theory):
-    #   Stations 1&2: P0 = ½ρU0²          (upstream, Bernoulli conserved)
-    #   Stations 3&4: P0 = ½ρ[U0(1-2a)]²  (downstream, Bernoulli conserved)
-    #   Drop:         ΔP0 = 2ρU0²·a(1-a)
+    # Freestream dynamic pressure
     q_inf = 0.5 * rho * U0**2
-    P0_12 = np.ones(len(r_R8))          # normalised by q_inf
-    P0_34 = (1.0 - 2.0*a_R8)**2        # normalised by q_inf
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    # Normalised stagnation pressures
+    P0_12 = np.ones(len(r_R8))
+    P0_34 = (1.0 - 2.0*a_R8)**2
 
-    # Left panel: dimensional [Pa]
-    ax = axes[0]
-    ax.plot(r_R8, q_inf*P0_12, "b-",  lw=2,
-            label=r"$P_0^{\infty,\uparrow}$  stat. 1  (far upstream)")
-    ax.plot(r_R8, q_inf*P0_12, "b--", lw=1.5, alpha=0.55,
-            label=r"$P_0^{+}$  stat. 2  (rotor upwind)")
-    ax.plot(r_R8, q_inf*P0_34, "r--", lw=1.5, alpha=0.55,
-            label=r"$P_0^{-}$  stat. 3  (rotor downwind)")
-    ax.plot(r_R8, q_inf*P0_34, "r-",  lw=2,
-            label=r"$P_0^{\infty,\downarrow}$  stat. 4  (far downstream)")
-    ax.set_xlabel("r/R"); ax.set_ylabel(r"$P_0$ [Pa]")
-    ax.legend(fontsize=8); ax.grid(True)
+    # Dimensional
+    P0_up = q_inf * P0_12
+    P0_down = q_inf * P0_34
 
-    # Right panel: normalised (dimensionless)
-    ax = axes[1]
-    ax.plot(r_R8, P0_12, "b-", lw=2,
-            label=r"$P_0/q_\infty = 1$  stat. 1 & 2")
-    ax.plot(r_R8, P0_34, "r-", lw=2,
-            label=r"$P_0/q_\infty = (1-2a)^2$  stat. 3 & 4")
-    ax.set_xlabel("r/R"); ax.set_ylabel(r"$P_0\,/\,q_\infty$ [-]")
-    ax.legend(fontsize=8); ax.grid(True)
+    # Small offset to visually separate overlapping curves
+    eps = 0.003 * q_inf
 
-    fig.tight_layout(); save_fig("7_stagnation_pressure_four_stations.png")
+    # -------------------------------------------------------
+    # LEFT FIGURE: four stations with small offset trick
+    # -------------------------------------------------------
+    fig, ax = plt.subplots(figsize=(7,5))
+
+    ax.plot(r_R8, P0_up, color="#0000FF", lw=2.5,
+        label=r"$P_0^{\infty,\uparrow}$ (infinity upwind)")
+
+    ax.plot(r_R8, P0_down, color="#FF0000", lw=2.5,
+            label=r"$P_0^{\infty,\downarrow}$ (infinity downwind)")
+
+    ax.plot(r_R8, P0_up+eps, color="#000000", lw=1.8, linestyle="--", alpha=0.95,
+            label=r"$P_0^{+}$ (rotor upwind)")
+
+    ax.plot(r_R8, P0_down+eps, color="#00AA00", lw=1.8, linestyle="--", alpha=0.95,
+            label=r"$P_0^{-}$ (rotor downwind)")
+
+    ax.set_xlabel("r/R")
+    ax.set_ylabel(r"$P_0$ [Pa]")
+    ax.grid(True)
+    ax.legend(fontsize=8)
+
+    fig.tight_layout()
+    save_fig("7_stagnation_pressure_four_stations.png")
+
+    # -------------------------------------------------------
+    # RIGHT FIGURE: paper-style stagnation pressure drop plot
+    # -------------------------------------------------------
+    fig, ax = plt.subplots(figsize=(7,5))
+
+    ax.plot(r_R8, P0_12, color="#0000FF", lw=2.5,
+            label=r"Upstream $P_0/q_\infty = 1$")
+
+    ax.plot(r_R8, P0_34, color="#FF0000", lw=2.5,
+            label=r"Downstream $P_0/q_\infty = (1-2a)^2$")
+
+    # Shade stagnation pressure drop (energy extracted)
+    ax.fill_between(
+        r_R8,
+        P0_34,
+        P0_12,
+        color="#B0B0B0",
+        alpha=0.35,
+        label=r"$\Delta P_0$"
+    )
+
+    ax.set_xlabel("r/R")
+    ax.set_ylabel(r"$P_0/q_\infty$ [-]")
+    ax.grid(True)
+    ax.legend(fontsize=8)
+
+    fig.tight_layout()
+    save_fig("7_stagnation_pressure_drop.png")
+
 elif PLOT_7:
     _skip("PLOT_7", "results_tsr8 missing (run with RUN_TSR_SWEEP_SPAN=True)")
 
@@ -978,6 +1013,119 @@ if PLOT_10:
         _skip("PLOT_10", "no design BEM results with Cd data available in npz")
 
 # =============================================================================
+# 16.  EXTRA — STAGNATION PRESSURE FOR OPTIMISED DESIGNS
+# =============================================================================
+#
+# Produces the same two Section-7 style plots for:
+#   • Analytical
+#   • Cubic poly
+#   • Quartic poly
+#
+# Saved files:
+#   7_opt_analytical_stagnation_pressure_four_stations.png
+#   7_opt_analytical_stagnation_pressure_drop.png
+#   7_opt_cubic_poly_stagnation_pressure_four_stations.png
+#   7_opt_cubic_poly_stagnation_pressure_drop.png
+#   7_opt_quartic_poly_stagnation_pressure_four_stations.png
+#   7_opt_quartic_poly_stagnation_pressure_drop.png
+# =============================================================================
+
+def _plot_stagnation_pressure_for_design(res_arr, design_name, file_tag):
+    """
+    Make the two stagnation-pressure plots for a single design result array.
+
+    Parameters
+    ----------
+    res_arr : ndarray
+        BEM result array with:
+        col 0 = axial induction a
+        col 2 = r/R
+    design_name : str
+        Name used in legend labels only.
+    file_tag : str
+        Safe filename tag, e.g. 'analytical', 'cubic_poly', 'quartic_poly'.
+    """
+    if res_arr is None:
+        print(f"  [INFO] stagnation-pressure plot skipped for {design_name} — result array missing")
+        return
+
+    r_R = res_arr[:, 2]
+    a_R = res_arr[:, 0]
+
+    # Freestream dynamic pressure
+    q_inf = 0.5 * rho * U0**2
+
+    # Normalised stagnation pressures
+    P0_12 = np.ones(len(r_R))
+    P0_34 = (1.0 - 2.0 * a_R) ** 2
+
+    # Dimensional
+    P0_up = q_inf * P0_12
+    P0_down = q_inf * P0_34
+
+    # Small offset to visually separate overlapping curves
+    eps = 0.003 * q_inf
+
+    # -------------------------------------------------------------------------
+    # Figure 1: four stations
+    # -------------------------------------------------------------------------
+    fig, ax = plt.subplots(figsize=(7, 5))
+
+    ax.plot(r_R, P0_up, color="#0000FF", lw=2.5,
+            label=rf"$P_0^{{\infty,\uparrow}}$ ({design_name}, infinity upwind)")
+
+    ax.plot(r_R, P0_down, color="#FF0000", lw=2.5,
+            label=rf"$P_0^{{\infty,\downarrow}}$ ({design_name}, infinity downwind)")
+
+    ax.plot(r_R, P0_up + eps, color="#000000", lw=1.8, linestyle="--", alpha=0.95,
+            label=rf"$P_0^{{+}}$ ({design_name}, rotor upwind)")
+
+    ax.plot(r_R, P0_down + eps, color="#00AA00", lw=1.8, linestyle="--", alpha=0.95,
+            label=rf"$P_0^{{-}}$ ({design_name}, rotor downwind)")
+
+    ax.set_xlabel("r/R")
+    ax.set_ylabel(r"$P_0$ [Pa]")
+    ax.grid(True)
+    ax.legend(fontsize=8)
+
+    fig.tight_layout()
+    save_fig(f"7_opt_{file_tag}_stagnation_pressure_four_stations.png")
+
+    # -------------------------------------------------------------------------
+    # Figure 2: paper-style stagnation pressure drop
+    # -------------------------------------------------------------------------
+    fig, ax = plt.subplots(figsize=(7, 5))
+
+    ax.plot(r_R, P0_12, color="#0000FF", lw=2.5,
+            label=r"Upstream $P_0/q_\infty = 1$")
+
+    ax.plot(r_R, P0_34, color="#FF0000", lw=2.5,
+            label=r"Downstream $P_0/q_\infty = (1-2a)^2$")
+
+    ax.fill_between(
+        r_R,
+        P0_34,
+        P0_12,
+        color="#B0B0B0",
+        alpha=0.35,
+        label=r"$\Delta P_0$"
+    )
+
+    ax.set_xlabel("r/R")
+    ax.set_ylabel(r"$P_0/q_\infty$ [-]")
+    ax.grid(True)
+    ax.legend(fontsize=8)
+
+    fig.tight_layout()
+    save_fig(f"7_opt_{file_tag}_stagnation_pressure_drop.png")
+
+
+# Run for the three optimised designs
+_plot_stagnation_pressure_for_design(res_anal,  "Analytical",   "analytical")
+_plot_stagnation_pressure_for_design(res_cubic, "Cubic poly",   "cubic_poly")
+_plot_stagnation_pressure_for_design(res_qrt,   "Quartic poly", "quartic_poly")
+
+# =============================================================================
 print("\n" + "="*60)
 print(f"ALL PLOTS SAVED TO: {save_folder}")
 print("="*60)
@@ -985,3 +1133,6 @@ print("\nFile list:")
 for f in sorted(os.listdir(save_folder)):
     if f.endswith(".png"):
         print(f"  {f}")
+
+
+

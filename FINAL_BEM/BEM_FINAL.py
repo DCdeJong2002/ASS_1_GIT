@@ -562,6 +562,10 @@ if PLOT_6 and results_tsr8 is not None:
     # 6 annuli counts: use a sequential blue palette so progression is visible
     _ANNULI_N   = [4, 8, 16, 32, 64, 160]
     _ANNULI_COLS = ["#08306b","#2171b5","#6baed6","#bdd7e7","#fd8d3c","#d62728"]
+
+    #_ANNULI_N   = [4, 8, 16, 32, 64, 80, 100, 120, 140, 160]
+    #_ANNULI_COLS = ["#08306b","#2171b5","#6baed6","#bdd7e7","#fd8d3c","#d62728", "#9467bd","#8c564b","#e377c2","#7f7f7f"]
+
     # spacing: black = constant, green = cosine
     _SPACING_COLS = {"Constant":"#000000","Cosine":"#2ca02c"}
     N_SPACING = 20   # annuli for spacing comparison
@@ -737,55 +741,84 @@ if PLOT_6 and results_tsr8 is not None:
 elif PLOT_6:
     print("  [SKIP] PLOT_6 — requires RUN_TSR_SWEEP_SPAN")
 
-# ── 7  Stagnation pressure ────────────────────────────────────────────────────
+
+
+# ── 7  Stagnation pressure ──────────────────────────────────────────────────────
 if PLOT_7 and results_tsr8 is not None:
     r_R8 = results_tsr8[:,2]
-    a_R8 = results_tsr8[:,0]   # axial induction from BEM
+    a_R8 = results_tsr8[:,0]
 
-    # ── Actuator-disk stagnation pressures ────────────────────────────────────
-    # From Bernoulli applied separately upstream and downstream of the rotor:
-    #
-    #   Station 1 (far upstream):    U = U0          → P0_1 = ½ρU0²
-    #   Station 2 (rotor, upwind):   U = U0(1-a)     → P0_2 = P0_1  (Bernoulli conserved)
-    #   Station 3 (rotor, downwind): U = U0(1-a)     → P0_3 = ½ρ[U0(1-2a)]²
-    #   Station 4 (far downstream):  U = U0(1-2a)    → P0_4 = P0_3  (Bernoulli conserved)
-    #
-    # The drop across the rotor disk:
-    #   ΔP0 = P0_1 - P0_3 = ½ρU0²[1-(1-2a)²] = 2ρU0²·a(1-a)
-    #
-    # Normalised by freestream dynamic pressure q∞ = ½ρU0²:
-    #   P0/q∞: station 1&2 = 1,  station 3&4 = (1-2a)²
-    q_inf   = 0.5*rho*U0**2                          # freestream dynamic pressure
-    P0_12   = np.ones(len(r_R8))                     # stations 1&2, normalised
-    P0_34   = (1.0 - 2.0*a_R8)**2                    # stations 3&4, normalised
+    # Freestream dynamic pressure
+    q_inf = 0.5 * rho * U0**2
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    # Normalised stagnation pressures
+    P0_12 = np.ones(len(r_R8))
+    P0_34 = (1.0 - 2.0*a_R8)**2
 
-    # Left: dimensional [Pa]
-    ax = axes[0]
-    ax.plot(r_R8, q_inf*P0_12, "b-",  lw=2,
-            label=r"$P_0^{\infty,\uparrow}$  stat. 1  (far upstream)")
-    ax.plot(r_R8, q_inf*P0_12, "b--", lw=1.5, alpha=0.55,
-            label=r"$P_0^{+}$  stat. 2  (rotor upwind)")
-    ax.plot(r_R8, q_inf*P0_34, "r--", lw=1.5, alpha=0.55,
-            label=r"$P_0^{-}$  stat. 3  (rotor downwind)")
-    ax.plot(r_R8, q_inf*P0_34, "r-",  lw=2,
-            label=r"$P_0^{\infty,\downarrow}$  stat. 4  (far downstream)")
-    ax.set_xlabel("r/R"); ax.set_ylabel(r"$P_0$ [Pa]")
-    ax.legend(fontsize=8); ax.grid(True)
+    # Dimensional
+    P0_up = q_inf * P0_12
+    P0_down = q_inf * P0_34
 
-    # Right: normalised by q_inf (dimensionless)
-    ax = axes[1]
-    ax.plot(r_R8, P0_12, "b-",  lw=2,
-            label=r"$P_0/q_\infty = 1$  stat. 1 & 2")
-    ax.plot(r_R8, P0_34, "r-",  lw=2,
-            label=r"$P_0/q_\infty = (1-2a)^2$  stat. 3 & 4")
-    ax.set_xlabel("r/R"); ax.set_ylabel(r"$P_0\,/\,q_\infty$ [-]")
-    ax.legend(fontsize=8); ax.grid(True)
+    # Small offset to visually separate overlapping curves
+    eps = 0.003 * q_inf
 
-    fig.tight_layout(); save_fig("7_stagnation_pressure_four_stations.png")
+    # -------------------------------------------------------
+    # LEFT FIGURE: four stations with small offset trick
+    # -------------------------------------------------------
+    fig, ax = plt.subplots(figsize=(7,5))
+
+    ax.plot(r_R8, P0_up, color="#0000FF", lw=2.5,
+        label=r"$P_0^{\infty,\uparrow}$ (infinity upwind)")
+
+    ax.plot(r_R8, P0_down, color="#FF0000", lw=2.5,
+            label=r"$P_0^{\infty,\downarrow}$ (infinity downwind)")
+
+    ax.plot(r_R8, P0_up+eps, color="#000000", lw=1.8, linestyle="--", alpha=0.95,
+            label=r"$P_0^{+}$ (rotor upwind)")
+
+    ax.plot(r_R8, P0_down+eps, color="#00AA00", lw=1.8, linestyle="--", alpha=0.95,
+            label=r"$P_0^{-}$ (rotor downwind)")
+
+    ax.set_xlabel("r/R")
+    ax.set_ylabel(r"$P_0$ [Pa]")
+    ax.grid(True)
+    ax.legend(fontsize=8)
+
+    fig.tight_layout()
+    save_fig("7_stagnation_pressure_four_stations.png")
+
+    # -------------------------------------------------------
+    # RIGHT FIGURE: paper-style stagnation pressure drop plot
+    # -------------------------------------------------------
+    fig, ax = plt.subplots(figsize=(7,5))
+
+    ax.plot(r_R8, P0_12, color="#0000FF", lw=2.5,
+            label=r"Upstream $P_0/q_\infty = 1$")
+
+    ax.plot(r_R8, P0_34, color="#FF0000", lw=2.5,
+            label=r"Downstream $P_0/q_\infty = (1-2a)^2$")
+
+    # Shade stagnation pressure drop (energy extracted)
+    ax.fill_between(
+        r_R8,
+        P0_34,
+        P0_12,
+        color="#B0B0B0",
+        alpha=0.35,
+        label=r"$\Delta P_0$"
+    )
+
+    ax.set_xlabel("r/R")
+    ax.set_ylabel(r"$P_0/q_\infty$ [-]")
+    ax.grid(True)
+    ax.legend(fontsize=8)
+
+    fig.tight_layout()
+    save_fig("7_stagnation_pressure_drop.png")
+
 elif PLOT_7:
-    print("  [SKIP] PLOT_7 — requires RUN_TSR_SWEEP_SPAN")
+    print("  [SKIP] PLOT_7 — requires results_tsr8 to be run")
+
 
 # ── 8  Design comparison ──────────────────────────────────────────────────────
 if PLOT_8 and res_base is not None:
@@ -931,7 +964,7 @@ if PLOT_9:
         fig, ax = plt.subplots(figsize=(9,5))
         ax2_comb=ax.twinx()
         for lbl,r_mid,cl,chord in _opt_data:
-            col=_design_color(lbl); col_chord=_lighten(col,0.45)
+            col=_design_color(lbl,1); col_chord=_lighten(col,0.45)
             ax.plot(r_mid,cl,    color=col,      lw=2,ls="-", label=rf"{lbl} — $C_l$")
             ax2_comb.plot(r_mid,chord,color=col_chord,lw=2,ls="--",label=f"{lbl} — chord")
         ax.set_xlabel("r/R"); ax.set_ylabel(r"$C_l$ [-]"); ax.grid(True)
@@ -944,14 +977,14 @@ if PLOT_9:
         # 9a individual — one file per optimised design
         for lbl,r_mid,cl,chord in _opt_data:
             fig, ax = plt.subplots(figsize=(9,5))
-            _make_9a_axes(ax,r_mid,cl,chord,_design_color(lbl),lbl)
+            _make_9a_axes(ax,r_mid,cl,chord,_design_color(lbl,1),lbl)
             fig.tight_layout()
             save_fig("9a_"+lbl.lower().replace(" ","_")+"_Cl_and_chord.png")
 
         # 9b circulation proxy — all optimised designs overlaid
         fig, ax = plt.subplots(figsize=(9,5))
         for lbl,r_mid,cl,chord in _opt_data:
-            ax.plot(r_mid,cl*chord,color=_design_color(lbl),lw=2,label=lbl)
+            ax.plot(r_mid,cl*chord,color=_design_color(lbl,1),lw=2,label=lbl)
         ax.set_xlabel("r/R"); ax.set_ylabel(r"$C_l \cdot c$  [m]"); ax.grid(True)
         ax.legend(); fig.tight_layout()
         save_fig("9b_circulation_proxy_Cl_times_chord_optimised_designs.png")
