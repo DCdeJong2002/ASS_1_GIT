@@ -1,10 +1,21 @@
 """
-assignment.py  —  AE4135 Rotor/Wake Aerodynamics, Assignment 1
+BEM_FINAL.py  —  AE4135 Rotor/Wake Aerodynamics, Assignment 1
+
+Authors: Douwe de Jong(5313899), Martijn van Leeuwen(5614422)
 ================================================================
 Self-contained script producing all required plots and saving
-results to full_bem_results.npz for use with plot_results.py.
+results to full_bem_results.npz for use with PLOTTING_BEM_FINAL.py.
 
-Run:  python assignment.py
+When running the optimization the computation takes quite long
+therefore all results from this file are already saved in:
+
+    1.bem_results.npz (includes BEM results)
+    2.opt_results.npz (includes optimized designs)
+
+These can then be plotted with PLOTTING_BEM_FINAL.py without 
+re-running the BEM or optimizations.
+    
+Run:  python BEM_FINAL.py
 """
 
 import os, sys, io
@@ -951,6 +962,7 @@ def _make_9a_axes(ax, r_mid, cl, chord, col, lbl):
 if PLOT_9:
     _opt_data=[]
     for lbl,r_arr,c_arr,res_arr in [
+            ("Baseline",    r_base,  c_base,  res_base),
             ("Analytical",  r_anal, c_anal,  res_anal),
             ("Cubic poly",  r_cubic,c_cubic, res_cubic),
             ("Quartic poly",r_qrt,  c_qrt,   res_qrt)]:
@@ -1239,3 +1251,87 @@ if SAVE_OPT_RESULTS:
     save_opt_results()
 else:
     print("SAVE_OPT_RESULTS=False — opt_results.npz not written.")
+
+
+
+
+#Added later 
+def plot_9a_baseline_pitch_sweep(
+    pitch_values,
+    tsr=8.0,
+    figsize=(9, 5)
+):
+    """
+    Create a Plot-9a-style figure for the baseline blade geometry at a fixed TSR,
+    but for multiple pitch values.
+
+    The plot shows:
+      - C_l on the left y-axis
+      - chord on the right y-axis
+
+    Parameters
+    ----------
+    pitch_values : list or array-like
+        Pitch values in degrees, e.g. [-4, -2, 0, 2]
+    tsr : float, optional
+        Tip-speed ratio at which to run the BEM evaluation.
+    figsize : tuple, optional
+        Matplotlib figure size.
+    """
+
+    fig, ax1 = plt.subplots(figsize=figsize)
+    ax2 = ax1.twinx()
+
+    for i, pitch_val in enumerate(pitch_values):
+        # Baseline geometry with modified pitch
+        bins = make_bins()
+        r_nodes = bins * Radius
+        c_nodes = 3.0 * (1.0 - bins) + 1.0
+        tw_nodes = -(14.0 * (1.0 - bins) + pitch_val)
+
+        # Evaluate rotor at requested TSR
+        CT_tmp, CP_tmp, res_tmp = evaluate_rotor(r_nodes, c_nodes, tw_nodes, tsr=tsr)
+
+        # Mid-span locations and local Cl
+        r_mid = res_tmp[:, 2]
+        cl_local = res_tmp[:, 8]
+
+        # Interpolate nodal chord onto annulus midpoints
+        chord_mid = np.interp(r_mid, r_nodes / Radius, c_nodes)
+
+        # Colors
+        col = _tsr_color(i, len(pitch_values))
+        col_chord = _lighten(col, 0.45)
+
+        # Plot Cl and chord
+        ax1.plot(
+            r_mid, cl_local,
+            color=col, lw=2,
+            label=rf"$\beta={pitch_val:.1f}^\circ$ — $C_l$"
+        )
+        ax2.plot(
+            r_mid, chord_mid,
+            color=col_chord, lw=2, ls="--",
+            label=rf"$\beta={pitch_val:.1f}^\circ$ — chord"
+        )
+
+        print(
+            f"Pitch = {pitch_val:+.2f} deg  |  "
+            f"TSR = {tsr:.2f}  |  "
+            f"CT = {CT_tmp:.5f}  |  "
+            f"CP = {CP_tmp:.5f}"
+        )
+
+    ax1.set_xlabel("r/R")
+    ax1.set_ylabel(r"$C_l$ [-]")
+    ax2.set_ylabel("Chord [m]")
+    ax1.grid(True)
+
+    h1, l1 = ax1.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+    ax1.legend(h1 + h2, l1 + l2, fontsize=8, loc="best")
+
+    fig.tight_layout()
+    plt.show()
+
+plot_9a_baseline_pitch_sweep(pitch_values=[-6, -4, -2, 0, 2], tsr=8.0)

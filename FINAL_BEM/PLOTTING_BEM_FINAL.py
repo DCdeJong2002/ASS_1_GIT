@@ -1,13 +1,15 @@
 """
-plot_results.py  —  Standalone plotting script
+PLOTTING_BEM_FINAL.py  —  Standalone plotting script
+
+Authors: Douwe de Jong(5313899), Martijn van Leeuwen(5614422)
 ================================================
-Loads full_bem_results.npz (produced by assignment.py) and
+Loads bem_results.npz and opt_results.npz (produced by BEM_FINAL.py) and
 reproduces all assignment plots without re-running any BEM.
 
 Usage
 -----
-    python plot_results.py                           # uses full_bem_results.npz in cwd
-    python plot_results.py path/to/results.npz       # explicit path
+    python PLOTTING_BEM_FINAL.py                           # uses bem_results.npz and opt_results.npz in cwd
+    python PLOTTING_BEM_FINAL.py path/to/bem_results.npz path/to/opt_results.npz  # explicit paths
 
 Plots saved to ./plotting_plots_assignment/
 """
@@ -45,9 +47,6 @@ PLOT_9    = True   # Cl and chord relation  (analytical optimum)
 PLOT_9_CMP = True  # NEW: chord + Cl comparison analytical vs quartic on one figure
 PLOT_10   = True   # Cl/Cd polar with operating points
 
-# =============================================================================
-# 1.  LOAD RESULTS
-# =============================================================================
 
 # =============================================================================
 # 1.  LOAD RESULTS — two separate npz files
@@ -56,13 +55,13 @@ PLOT_10   = True   # Cl/Cd polar with operating points
 # bem_results.npz   — BEM sweeps, tip correction, convergence, section-6 data
 # opt_results.npz   — baseline + all optimised designs (analytical, cubic, quartic)
 #
-# Both files are written next to assignment.py by default.
+# Both files are written next to BEM_FINAL.py by default.
 # You can override either path via command-line:
-#   python plot_results.py bem_results.npz opt_results.npz
+#   python PLOTTING_BEM_FINAL.py bem_results.npz opt_results.npz
 # Or override just the first:
-#   python plot_results.py path/to/bem_results.npz
+#   python PLOTTING_BEM_FINAL.py path/to/bem_results.npz
 #
-# If opt_results.npz is absent, all PLOT_8/9/10 plots are skipped gracefully.
+# If opt_results.npz is absent, all PLOT_8/9/10 plots are skipped.
 # =============================================================================
 
 _script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -851,6 +850,7 @@ if PLOT_9:
     _opt_lbls = ["Analytical", "Cubic poly", "Quartic poly"]
     _opt_data  = []   # (lbl, r_mid, cl, chord)
     for lbl, r_arr, c_arr, res_arr in [
+            ("Baseline",     r_base,  c_base,  res_base),
             ("Analytical",   r_anal,  c_anal,  res_anal),
             ("Cubic poly",   r_cubic, c_cubic, res_cubic),
             ("Quartic poly", r_qrt,   c_qrt,   res_qrt)]:
@@ -919,7 +919,7 @@ if PLOT_9_CMP:
 #
 # For each plot type (10a polar, 10b glide ratio):
 #   • one combined figure showing all available designs together
-#   • one individual figure per optimised design (Analytical, Cubic, Quartic)
+#   • one individual figure per optimised design (Baseline, Analytical, Cubic, Quartic)
 #
 # Scatter points are colored by r/R via viridis.  Each design uses its
 # predefined color as the edge color and a unique marker shape.
@@ -933,7 +933,7 @@ if PLOT_10:
                           ("Quartic poly", res_qrt)]:
         if res_arr is not None and res_arr.shape[1] >= 10:
             _pol_all.append((lbl, res_arr))
-            if lbl != "Baseline":
+            if lbl != "Bas":
                 _pol_opt.append((lbl, res_arr))
 
     if _pol_all:
