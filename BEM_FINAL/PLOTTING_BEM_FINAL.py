@@ -162,10 +162,10 @@ _TSR_MANY_COLORS = ["#000000", "#2ca02c", "#d62728", "#0000ff",
 def _tsr_color(idx, n):
     return _TSR_3_COLORS[idx % 3] if n <= 3 else _TSR_MANY_COLORS[idx % len(_TSR_MANY_COLORS)]
 
-_DESIGN_COLORS_3 = {"Baseline":"#2ca02c","Analytical":"#1f77b4",
-                    "Cubic poly":"#d62728","Quartic poly":"#ff7f0e"}
-_DESIGN_COLORS_4 = {"Baseline":"#1f77b4","Analytical":"#2ca02c",
-                    "Cubic poly":"#d62728","Quartic poly":"#ff7f0e"}
+_DESIGN_COLORS_3 = {"Baseline":"#000000","Analytical":"#00FF00",
+                    "Cubic poly":"#FF0000","Quartic poly":"#0000FF"}
+_DESIGN_COLORS_4 = {"Baseline":"#000000","Analytical":"#00FF00",
+                    "Cubic poly":"#FF0000","Quartic poly":"#0000FF"}
 
 def _design_color(label, n):
     d = _DESIGN_COLORS_3 if n <= 3 else _DESIGN_COLORS_4
@@ -303,12 +303,12 @@ elif PLOT_4_3:
 
 if PLOT_4_4 and len(TSR_SWEEP_PERF) > 0:
     CQ_perf = tsr_CP_perf / np.array(TSR_SWEEP_PERF, dtype=float)
-    for vals, ylabel, fname in [
-            (tsr_CT_perf, r"$C_T$ [-]", "4_4a_thrust_coefficient_CT_vs_TSR.png"),
-            (CQ_perf,     r"$C_Q$ [-]", "4_4b_torque_coefficient_CQ_vs_TSR.png"),
-            (tsr_CP_perf, r"$C_P$ [-]", "4_4c_power_coefficient_CP_vs_TSR.png")]:
+    for vals, ylabel, fname, color_i in [
+            (tsr_CT_perf, r"$C_T$ [-]", "4_4a_thrust_coefficient_CT_vs_TSR.png", "red"),
+            (CQ_perf,     r"$C_Q$ [-]", "4_4b_torque_coefficient_CQ_vs_TSR.png", "blue"),
+            (tsr_CP_perf, r"$C_P$ [-]", "4_4c_power_coefficient_CP_vs_TSR.png", "green")]:
         fig, ax = plt.subplots(figsize=(7, 5))
-        ax.plot(TSR_SWEEP_PERF, vals, "o-", color="#1f77b4", lw=2)
+        ax.plot(TSR_SWEEP_PERF, vals, "o-", color=color_i, lw=2)
         ax.set_xlabel(r"Tip-speed ratio $\lambda$ [-]"); ax.set_ylabel(ylabel)
         ax.grid(True)
         fig.tight_layout(); save_fig(fname)

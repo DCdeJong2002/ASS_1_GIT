@@ -27,10 +27,10 @@ N_STARTS   = 12
 # TSR_SWEEP_PERF   : used for CT/CQ/CP vs TSR performance curves (4.4)
 #                    can be as wide as desired
 TSR_SWEEP_SPAN = [6, 8, 10]
-TSR_SWEEP_PERF = [4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5,10, 10.5, 11, 11.5, 12]
+TSR_SWEEP_PERF = [4, 5, 6, 7, 8, 9, 10, 11, 12]
 
 TSR_DESIGN = 8.0
-CT_TARGET  = 0.75 
+CT_TARGET  = 0.75
 
 Radius         = 50.0
 NBlades        = 3
@@ -65,7 +65,7 @@ RUN_NO_CORRECTION   = True   # F=1 run at TSR=8
                               #   required by: PLOT_5
 RUN_ANALYTICAL      = True   # analytical optimum via Brent root-finder
                               #   required by: PLOT_8, PLOT_9, PLOT_10
-RUN_CUBIC           = True   # cubic polynomial optimiser
+RUN_CUBIC           = False   # cubic polynomial optimiser
                               #   required by: PLOT_8
 RUN_QUARTIC         = True   # quartic polynomial optimiser
                               #   required by: PLOT_8
@@ -382,26 +382,26 @@ def _make_objective(quartic):
         if c_max>CHORD_MAX_REG: pen+=1e3*(c_max-CHORD_MAX_REG)**2
         if c_min<CHORD_MIN*0.5: return 1e9
         r,c,tw=build_poly_geometry(params); CT,CP,_=evaluate_rotor(r,c,tw)
-        pen+=5e3*(CT-CT_TARGET)**2
-        if quartic: _,_,_,t_curve,_,c2,c3,c4=params; pen+=0.05*t_curve**2+0.01*(c2**2+c3**2+c4**2)
-        else:       _,_,_,t_curve,_,c2,c3=params;    pen+=0.05*t_curve**2+0.01*(c2**2+c3**2)
+        pen+=3e3*(CT-CT_TARGET)**2
+        if quartic: _,_,_,t_curve,_,c2,c3,c4=params; pen+=0.0001*t_curve**2+0.0001*(c2**2+c3**2+c4**2)
+        else:       _,_,_,t_curve,_,c2,c3=params;    pen+=0.0001*t_curve**2+0.0001*(c2**2+c3**2)
         return -CP+pen
     return obj
 
 def run_poly_optimizer(quartic=False,n_starts=N_STARTS,seed=42):
     rng=np.random.default_rng(seed); obj=_make_objective(quartic); label="quartic" if quartic else "cubic"
     if quartic:
-        bounds=[(-8,8),(-25,5),(-10,15),(-20,20),(0.3,2),(-5,5),(-5,5),(-5,5)]
+        bounds=[(-8,8),(-25,5),(-10,15),(-20,20),(0.3,2),(-10,10),(-10,10),(-10,10)]
         x0_nom=np.array([-2,-7,2,0,1,0,0,0],dtype=float)
         def _rand(): return np.array([rng.uniform(-6,6),rng.uniform(-20,0),rng.uniform(-5,10),
-                                       rng.uniform(-10,10),rng.uniform(0.3,1.5),
-                                       rng.uniform(-3,3),rng.uniform(-3,3),rng.uniform(-3,3)])
+                                       rng.uniform(-10,10),rng.uniform(0.3,1.8),
+                                       rng.uniform(-8,8),rng.uniform(-8,8),rng.uniform(-8,8)])
     else:
-        bounds=[(-8,8),(-25,5),(-10,15),(-20,20),(0.3,2),(-5,5),(-5,5)]
+        bounds=[(-8,8),(-25,5),(-10,15),(-20,20),(0.3,2),(-10,10),(-10,-10)]
         x0_nom=np.array([-2,-7,2,0,1,0,0],dtype=float)
         def _rand(): return np.array([rng.uniform(-6,6),rng.uniform(-20,0),rng.uniform(-5,10),
-                                       rng.uniform(-10,10),rng.uniform(0.3,1.5),
-                                       rng.uniform(-3,3),rng.uniform(-3,3)])
+                                       rng.uniform(-15,15),rng.uniform(0.3,1.8),
+                                       rng.uniform(-8,8),rng.uniform(-8,8)])
     starts=[x0_nom]+[_rand() for _ in range(n_starts-1)]
     best_obj=np.inf; best_p=x0_nom.copy()
     for k,x0 in enumerate(starts,1):
@@ -455,7 +455,7 @@ if RUN_QUARTIC:    print(f"  Quartic poly   CT={CT_qrt:.6f}  CP={CP_qrt:.6f}  CP
 # 10.  PLOTS
 # =============================================================================
 
-save_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plots_assignment")
+save_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plots_assignment_new_pol")
 os.makedirs(save_folder, exist_ok=True)
 
 def save_fig(name):
@@ -516,12 +516,12 @@ if PLOT_4_4 and sweep_perf:
     CP_p  = [sweep_perf[t]["CP"] for t in tsr_p]
     CQ_p  = [sweep_perf[t]["CP"]/t for t in tsr_p]
 
-    for vals, ylabel, fname, color_i in [
-            (CT_p, r"$C_T$ [-]", "4_4a_thrust_coefficient_CT_vs_TSR.png", "red"),
-            (CQ_p, r"$C_Q$ [-]", "4_4b_torque_coefficient_CQ_vs_TSR.png", "blue"),
-            (CP_p, r"$C_P$ [-]", "4_4c_power_coefficient_CP_vs_TSR.png", "green")]:
+    for vals, ylabel, fname in [
+            (CT_p, r"$C_T$ [-]", "4_4a_thrust_coefficient_CT_vs_TSR.png"),
+            (CQ_p, r"$C_Q$ [-]", "4_4b_torque_coefficient_CQ_vs_TSR.png"),
+            (CP_p, r"$C_P$ [-]", "4_4c_power_coefficient_CP_vs_TSR.png")]:
         fig, ax = plt.subplots(figsize=(7,5))
-        ax.plot(tsr_p, vals, "o-", color=color_i, lw=2)
+        ax.plot(tsr_p, vals, "o-", color="#1f77b4", lw=2)
         ax.set_xlabel(r"Tip-speed ratio $\lambda$ [-]"); ax.set_ylabel(ylabel)
         ax.grid(True)
         fig.tight_layout(); save_fig(fname)
@@ -794,7 +794,7 @@ for f in sorted(os.listdir(save_folder)):
 # 11.  SAVE RESULTS
 # =============================================================================
 
-def save_results(path="full_bem_results.npz"):
+def save_results(path="full_bem_results-new_pol.npz"):
     annuli_res={}
     for N in [8,20,100]:
         b=np.linspace(RootLocation_R,TipLocation_R,N+1); rows=[]
