@@ -162,9 +162,9 @@ _TSR_MANY_COLORS = ["#000000", "#2ca02c", "#d62728", "#0000ff",
 def _tsr_color(idx, n):
     return _TSR_3_COLORS[idx % 3] if n <= 3 else _TSR_MANY_COLORS[idx % len(_TSR_MANY_COLORS)]
 
-_DESIGN_COLORS_3 = {"Baseline":"#000000","Analytical":"#00FF00",
+_DESIGN_COLORS_3 = {"Baseline":"#000000","Analytical":"#2ca02c",
                     "Cubic poly":"#FF0000","Quartic poly":"#0000FF"}
-_DESIGN_COLORS_4 = {"Baseline":"#000000","Analytical":"#00FF00",
+_DESIGN_COLORS_4 = {"Baseline":"#000000","Analytical":"#2ca02c",
                     "Cubic poly":"#FF0000","Quartic poly":"#0000FF"}
 
 def _design_color(label, n):
